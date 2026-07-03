@@ -226,19 +226,20 @@ DEEPSEEK_MODEL_FLASH="deepseek-v4-flash"  # 快速模式
 QDRANT_URL="http://localhost:6333"
 ```
 
-### 3. 初始化数据库
+### 3. 一键初始化数据库
 
 ```bash
-# 在 MySQL 中创建数据库
-mysql -u root -p -e "CREATE DATABASE resume_pilot_ai CHARACTER SET utf8mb4;"
-
-# 生成 Prisma 客户端 + 推送 schema
-npm run prisma:generate
-npx prisma db push
-
-# （可选）填充测试数据
-npx ts-node prisma/seed-test-data.ts
+npm run db:init
 ```
+
+这条命令会自动完成：
+
+1. ✅ 创建 MySQL 数据库 `resume_pilot_ai`（如不存在）
+2. ✅ 生成 Prisma Client
+3. ✅ 推送 schema 建表（等价于 Spring JPA 的 `ddl-auto=update`）
+4. ✅ 填充测试数据（用户/简历/JD 等示例）
+
+> 💡 脚本位于 [backend/scripts/init-db.ts](backend/scripts/init-db.ts)，可按需修改。
 
 ### 4. 启动后端
 
