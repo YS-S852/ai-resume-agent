@@ -2,6 +2,7 @@
  * 一键数据库初始化脚本
  *
  * 流程：
+ *   0. 检测后端是否正在运行（占用 3002 端口）—— 会持有 Prisma 引擎锁，需先停掉
  *   1. 从 .env 读取 DATABASE_URL
  *   2. 用 mysql2 连接 MySQL（不指定数据库），创建 resume_pilot_ai 数据库（如不存在）
  *   3. 调用 prisma db push 建表
@@ -17,7 +18,38 @@ import mysql from 'mysql2/promise';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as net from 'net';
 import * as dotenv from 'dotenv';
+
+// ─── 0. 检测后端进程是否在跑（占用端口会导致 Prisma 引擎 DLL 被锁）────────
+function isPortInUse(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const tester = net
+      .createServer()
+      .once('error', () => resolve(true))   // 端口被占用
+      .once('listening', () => {
+        tester.close(() => resolve(false));  // 端口空闲
+      })
+      .listen(port);
+  });
+}
+
+async function checkBackendNotRunning() {
+  const port = parseInt(process.env.PORT || '3002', 10);
+  const inUse = await isPortInUse(port);
+  if (!inUse) return;
+
+  console.error('');
+  console.error('\u274c 检测到端口 ' + port + ' 被占用，后端进程可能正在运行。');
+  console.error('   后端运行时会持有 Prisma 查询引擎的锁文件（query_engine-windows.dll.node），');
+  console.error('   导致 prisma db push 无法重新生成，会报 EPERM 错误。');
+  console.error('');
+  console.error('   请先停止后端进程：');
+  console.error('     - 在运行 npm run start:dev 的终端按 Ctrl+C');
+  console.error('     - 或执行：Stop-Process -Id <PID> -Force（PID 可通过 netstat -ano | findstr :' + port + ' 查询）');
+  console.error('   停止后重新运行：npm run db:init');
+  process.exit(1);
+}
 
 // ─── 1. 读取 .env ──────────────────────────────────────────────
 const envPath = path.resolve(process.cwd(), '.env');
@@ -49,6 +81,11 @@ const ok = (msg: string) => console.log(`\u2705 [db:init] ${msg}`);
 
 // ─── 3. 主流程 ──────────────────────────────────────────────────
 async function main() {
+  // 步骤 0：检测后端是否在跑（会锁住 Prisma 引擎 DLL）
+  log('步骤 0/4：检测后端进程...');
+  await checkBackendNotRunning();
+  ok('后端未运行（端口空闲）');
+
   log(`目标数据库：${dbName} @ ${host}:${port}`);
 
   // 步骤 1：创建数据库本身（如不存在）
