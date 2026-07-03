@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Resume Agent - System Architecture Blueprint</title>
+<style>
+  /* ── Reset ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Tokens ── */
+  :root {
+    --bg:       #f8fafc;
+    --canvas:   #ffffff;
+    --border:   #cbd5e1;
+    --border-dk:#94a3b8;
+    --text-1:   #0f172a;
+    --text-2:   #64748b;
+    --text-3:   #94a3b8;
+    --accent:   #1e293b;
+    --layer-fe: #eff6ff;
+    --layer-api:#f0fdf4;
+    --layer-db: #fefce8;
+    --layer-ag: #fdf2f8;
+    --layer-llm:#f5f3ff;
+    --tag-fe:   #3b82f6;
+    --tag-api:  #16a34a;
+    --tag-db:   #ca8a04;
+    --tag-ag:   #db2777;
+    --tag-llm:  #7c3aed;
+  }
+
+  /* ── Base ── */
+  html { font-size: 14px; }
+  body {
+    background: var(--bg);
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--text-1);
+    padding: 40px 24px 60px;
+    min-height: 100vh;
+  }
+
+  /* ── Blueprint Canvas ── */
+  .canvas {
+    max-width: 1080px;
+    margin: 0 auto;
+    background: var(--canvas);
+    border: 2px solid var(--border);
+    padding: 48px 56px 56px;
+    position: relative;
+  }
+  .canvas::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border: 1px solid var(--border);
+    pointer-events: none;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 2px solid var(--border);
+    position: relative;
+  }
+  .header-meta {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--text-3);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .header-title {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-1);
+    margin-bottom: 6px;
+  }
+  .header-sub {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    color: var(--text-2);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .header-rule {
+    width: 64px;
+    height: 2px;
+    background: var(--text-1);
+    margin: 0 auto 14px;
+  }
+  .header-desc {
+    font-size: 12px;
+    color: var(--text-2);
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  /* ── Layer ── */
+  .layer {
+    border: 2px solid var(--border);
+    padding: 28px 32px 32px;
+    margin-bottom: 0;
+    position: relative;
+  }
+  .layer + .connector + .layer { }
+
+  .layer-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .layer-num {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--canvas);
+    background: var(--accent);
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .layer-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-1);
+    flex: 1;
+  }
+  .layer-badge {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    flex-shrink: 0;
+  }
+
+  /* ── Node Grid ── */
+  .nodes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .nodes--single {
+    grid-template-columns: 1fr;
+  }
+  .node {
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    padding: 14px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    position: relative;
+    transition: border-color 0.15s;
+  }
+  .node:hover {
+    border-color: var(--border-dk);
+  }
+  .node-icon {
+    font-size: 18px;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+  .node-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-1);
+    line-height: 1.3;
+  }
+  .node-desc {
+    font-size: 11px;
+    color: var(--text-2);
+    line-height: 1.55;
+  }
+  .node-tag {
+    display: inline-block;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border: 1px solid currentColor;
+    width: fit-content;
+    line-height: 1.4;
+  }
+
+  /* ── Tag colours ── */
+  .tag-ui       { color: var(--tag-fe); }
+  .tag-service  { color: var(--tag-api); }
+  .tag-storage  { color: var(--tag-db); }
+  .tag-agent    { color: var(--tag-ag); }
+  .tag-model    { color: var(--tag-llm); }
+
+  /* ── Layer background tints ── */
+  .layer--fe   { background: var(--layer-fe); }
+  .layer--api  { background: var(--layer-api); }
+  .layer--db   { background: var(--layer-db); }
+  .layer--ag   { background: var(--layer-ag); }
+  .layer--llm  { background: var(--layer-llm); }
+
+  /* ── Connector ── */
+  .connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 0;
+    gap: 0;
+    position: relative;
+  }
+  .connector-line {
+    width: 2px;
+    height: 18px;
+    background: var(--border-dk);
+  }
+  .connector-arrow {
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 9px solid var(--border-dk);
+  }
+  .connector-label {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+    text-transform: uppercase;
+    margin: 4px 0 2px;
+  }
+  .connector-proto {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 9px;
+    color: var(--text-2);
+    border: 1px dashed var(--border);
+    padding: 2px 10px;
+    margin-bottom: 2px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── API single node ── */
+  .api-node {
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    padding: 18px 24px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 24px;
+    align-items: start;
+  }
+  .api-node .node-name { font-size: 15px; }
+  .api-node .node-desc { grid-column: 1 / -1; font-size: 12px; }
+  .api-endpoints {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    grid-column: 1 / -1;
+    margin-top: 4px;
+  }
+  .api-ep {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    color: var(--text-2);
+    border: 1px solid var(--border);
+    padding: 3px 9px;
+    letter-spacing: 0.02em;
+  }
+
+  /* ── DB 3-col ── */
+  .db-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .db-node {
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    padding: 16px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .db-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-1);
+  }
+  .db-engine {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    color: var(--text-2);
+    letter-spacing: 0.05em;
+  }
+  .db-use {
+    font-size: 11px;
+    color: var(--text-2);
+    line-height: 1.55;
+  }
+  .db-bar {
+    height: 3px;
+    background: var(--border);
+    margin-top: auto;
+    position: relative;
+  }
+  .db-bar-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: var(--tag-db);
+  }
+
+  /* ── LLM model cards ── */
+  .llm-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .llm-node {
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    padding: 16px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .llm-badge {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    width: fit-content;
+  }
+  .llm-primary .llm-badge   { background: var(--tag-llm); color: var(--canvas); }
+  .llm-fallback .llm-badge  { background: transparent; border: 1px solid var(--tag-llm); color: var(--tag-llm); }
+  .llm-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-1);
+  }
+  .llm-role {
+    font-size: 11px;
+    color: var(--text-2);
+    line-height: 1.55;
+  }
+  .llm-node.llm-primary {
+    border-color: var(--tag-llm);
+    border-width: 2px;
+  }
+
+  /* ── Agent nodes ── */
+  .ag-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .ag-node {
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    padding: 16px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ag-node:hover { border-color: var(--tag-ag); }
+  .ag-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ag-id {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--tag-ag);
+    border: 1px solid var(--tag-ag);
+    padding: 1px 6px;
+    flex-shrink: 0;
+  }
+  .ag-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-1);
+    line-height: 1.3;
+  }
+  .ag-desc {
+    font-size: 11px;
+    color: var(--text-2);
+    line-height: 1.55;
+  }
+  .ag-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: auto;
+  }
+  .ag-tool {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 9px;
+    color: var(--text-3);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 2px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .footer-legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-2);
+  }
+  .legend-swatch {
+    width: 10px;
+    height: 10px;
+    border: 1px solid;
+    flex-shrink: 0;
+  }
+  .footer-meta {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    color: var(--text-3);
+    text-align: right;
+    line-height: 1.8;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 700px) {
+    .canvas { padding: 28px 20px 36px; }
+    .nodes, .db-grid, .llm-grid, .ag-grid { grid-template-columns: 1fr 1fr; }
+    .layer { padding: 20px 18px 24px; }
+  }
+  @media (max-width: 480px) {
+    .nodes, .db-grid, .llm-grid, .ag-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="canvas">
+
+  <!-- ── Header ── -->
+  <div class="header">
+    <div class="header-meta">DOC-ARCH-001 &nbsp;/&nbsp; REV 1.0 &nbsp;/&nbsp; 2026-06-04</div>
+    <div class="header-title">AI Resume Agent 系统架构图</div>
+    <div class="header-sub">System Architecture Blueprint V1.0</div>
+    <div class="header-rule"></div>
+    <div class="header-desc">
+      五层分层架构设计：前端交互层 &rarr; 服务层 &rarr; 数据存储层 &rarr; AI智能体层 &rarr; 大模型层，<br>
+      模块化独立编排，多模型自动降级适配
+    </div>
+  </div>
+
+  <!-- ━━━━━━━━━━ LAYER 1 : Frontend ━━━━━━━━━━ -->
+  <div class="layer layer--fe">
+    <div class="layer-head">
+      <span class="layer-num">01</span>
+      <span class="layer-title">前端 Web &mdash; 交互层</span>
+      <span class="layer-badge">Presentation</span>
+    </div>
+    <div class="nodes">
+      <!-- Node 1 -->
+      <div class="node">
+        <div class="node-icon">&#9787;</div>
+        <span class="node-tag tag-ui">UI Module</span>
+        <div class="node-name">用户中心</div>
+        <div class="node-desc">注册/登录、个人资料、订阅计划管理</div>
+      </div>
+      <!-- Node 2 -->
+      <div class="node">
+        <div class="node-icon">&#9881;</div>
+        <span class="node-tag tag-ui">UI Module</span>
+        <div class="node-name">AI 聊天助手</div>
+        <div class="node-desc">多轮对话交互、意图识别、流式响应展示</div>
+      </div>
+      <!-- Node 3 -->
+      <div class="node">
+        <div class="node-icon">&#9998;</div>
+        <span class="node-tag tag-ui">UI Module</span>
+        <div class="node-name">简历编辑器</div>
+        <div class="node-desc">所见即所得编辑、模板切换、PDF导出</div>
+      </div>
+      <!-- Node 4 -->
+      <div class="node">
+        <div class="node-icon">&#9733;</div>
+        <span class="node-tag tag-ui">UI Module</span>
+        <div class="node-name">ATS 分析中心</div>
+        <div class="node-desc">关键词匹配度分析、合规评分可视化</div>
+      </div>
+      <!-- Node 5 -->
+      <div class="node">
+        <div class="node-icon">&#9881;</div>
+        <span class="node-tag tag-ui">UI Module</span>
+        <div class="node-name">面试中心</div>
+        <div class="node-desc">模拟面试、题目推荐、回答评估反馈</div>
+      </div>
+      <!-- Node 6 -->
+      <div class="node">
+        <div class="node-icon">&#9776;</div>
+        <span class="node-tag tag-ui">UI Module</span>
+        <div class="node-name">求职管理中心</div>
+        <div class="node-desc">投递跟踪、岗位收藏、求职进度看板</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Connector ── -->
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-proto">HTTPS / WebSocket</div>
+    <div class="connector-label">REST &amp; Realtime</div>
+    <div class="connector-line"></div>
+    <div class="connector-arrow"></div>
+  </div>
+
+  <!-- ━━━━━━━━━━ LAYER 2 : NestJS API ━━━━━━━━━━ -->
+  <div class="layer layer--api">
+    <div class="layer-head">
+      <span class="layer-num">02</span>
+      <span class="layer-title">NestJS API &mdash; 服务层 / 业务逻辑层</span>
+      <span class="layer-badge">Backend</span>
+    </div>
+    <div class="api-node">
+      <span class="node-tag tag-service">Service Layer</span>
+      <div></div>
+      <div class="node-name">NestJS Application Server</div>
+      <div class="node-desc">
+        统一网关路由、JWT鉴权、RBAC权限控制、请求校验、速率限制、Agent编排调度、日志监控
+      </div>
+      <div class="api-endpoints">
+        <span class="api-ep">/api/auth</span>
+        <span class="api-ep">/api/resume</span>
+        <span class="api-ep">/api/ats</span>
+        <span class="api-ep">/api/interview</span>
+        <span class="api-ep">/api/career</span>
+        <span class="api-ep">/api/search</span>
+        <span class="api-ep">/ws/chat</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Connector ── -->
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-proto">TCP / ORM / Protocol</div>
+    <div class="connector-label">Data Access</div>
+    <div class="connector-line"></div>
+    <div class="connector-arrow"></div>
+  </div>
+
+  <!-- ━━━━━━━━━━ LAYER 3 : Data Storage ━━━━━━━━━━ -->
+  <div class="layer layer--db">
+    <div class="layer-head">
+      <span class="layer-num">03</span>
+      <span class="layer-title">数据存储层</span>
+      <span class="layer-badge">Persistence</span>
+    </div>
+    <div class="db-grid">
+      <!-- MySQL -->
+      <div class="db-node">
+        <span class="node-tag tag-storage">RDBMS</span>
+        <div class="db-name">MySQL</div>
+        <div class="db-engine">Engine: InnoDB / 8.0+</div>
+        <div class="db-use">业务数据持久化：用户、简历、投递记录、面试记录、订阅订单等结构化数据</div>
+        <div class="db-bar"><div class="db-bar-fill" style="width:75%;background:var(--tag-db)"></div></div>
+      </div>
+      <!-- Redis -->
+      <div class="db-node">
+        <span class="node-tag tag-storage">Cache</span>
+        <div class="db-name">Redis</div>
+        <div class="db-engine">Engine: Redis 7+ / Cluster</div>
+        <div class="db-use">高频请求缓存加速：会话管理、热点数据缓存、API限流计数器、消息队列</div>
+        <div class="db-bar"><div class="db-bar-fill" style="width:55%;background:var(--tag-db)"></div></div>
+      </div>
+      <!-- Qdrant -->
+      <div class="db-node">
+        <span class="node-tag tag-storage">Vector DB</span>
+        <div class="db-name">Qdrant</div>
+        <div class="db-engine">Engine: Qdrant 1.x / Rust</div>
+        <div class="db-use">向量数据库：简历/岗位语义嵌入存储、相似度检索、知识库向量索引</div>
+        <div class="db-bar"><div class="db-bar-fill" style="width:45%;background:var(--tag-db)"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Connector ── -->
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-proto">Internal RPC / Queue</div>
+    <div class="connector-label">Agent Dispatch</div>
+    <div class="connector-line"></div>
+    <div class="connector-arrow"></div>
+  </div>
+
+  <!-- ━━━━━━━━━━ LAYER 4 : AI Agent Layer ━━━━━━━━━━ -->
+  <div class="layer layer--ag">
+    <div class="layer-head">
+      <span class="layer-num">04</span>
+      <span class="layer-title">AI Agent Layer &mdash; 智能核心层</span>
+      <span class="layer-badge">Modular Agents</span>
+    </div>
+    <div class="ag-grid">
+      <!-- Resume Agent -->
+      <div class="ag-node">
+        <div class="ag-header">
+          <span class="ag-id">AG-01</span>
+          <span class="node-tag tag-agent">Agent</span>
+        </div>
+        <div class="ag-name">Resume Agent</div>
+        <div class="ag-desc">简历生成与优化：根据目标岗位自动撰写、润色、排版建议，多版本管理</div>
+        <div class="ag-tools">
+          <span class="ag-tool">LLM</span>
+          <span class="ag-tool">Template</span>
+          <span class="ag-tool">PDF</span>
+        </div>
+      </div>
+      <!-- JD Agent -->
+      <div class="ag-node">
+        <div class="ag-header">
+          <span class="ag-id">AG-02</span>
+          <span class="node-tag tag-agent">Agent</span>
+        </div>
+        <div class="ag-name">JD Agent</div>
+        <div class="ag-desc">岗位解析与匹配：JD结构化提取、技能图谱构建、人岗匹配度计算</div>
+        <div class="ag-tools">
+          <span class="ag-tool">LLM</span>
+          <span class="ag-tool">NLP</span>
+          <span class="ag-tool">Qdrant</span>
+        </div>
+      </div>
+      <!-- ATS Agent -->
+      <div class="ag-node">
+        <div class="ag-header">
+          <span class="ag-id">AG-03</span>
+          <span class="node-tag tag-agent">Agent</span>
+        </div>
+        <div class="ag-name">ATS Agent</div>
+        <div class="ag-desc">合规评分与优化：ATS系统规则解析、关键词注入建议、格式合规检查</div>
+        <div class="ag-tools">
+          <span class="ag-tool">LLM</span>
+          <span class="ag-tool">Rules</span>
+          <span class="ag-tool">Scorer</span>
+        </div>
+      </div>
+      <!-- Interview Agent -->
+      <div class="ag-node">
+        <div class="ag-header">
+          <span class="ag-id">AG-04</span>
+          <span class="node-tag tag-agent">Agent</span>
+        </div>
+        <div class="ag-name">Interview Agent</div>
+        <div class="ag-desc">面试出题与模拟：根据JD生成面试题、模拟对话、STAR法则评估反馈</div>
+        <div class="ag-tools">
+          <span class="ag-tool">LLM</span>
+          <span class="ag-tool">TTS</span>
+          <span class="ag-tool">Eval</span>
+        </div>
+      </div>
+      <!-- Career Vault Agent -->
+      <div class="ag-node">
+        <div class="ag-header">
+          <span class="ag-id">AG-05</span>
+          <span class="node-tag tag-agent">Agent</span>
+        </div>
+        <div class="ag-name">Career Vault Agent</div>
+        <div class="ag-desc">职业知识库管理：行业知识沉淀、职业规划建议、经验案例库维护</div>
+        <div class="ag-tools">
+          <span class="ag-tool">LLM</span>
+          <span class="ag-tool">RAG</span>
+          <span class="ag-tool">Qdrant</span>
+        </div>
+      </div>
+      <!-- Search Agent -->
+      <div class="ag-node">
+        <div class="ag-header">
+          <span class="ag-id">AG-06</span>
+          <span class="node-tag tag-agent">Agent</span>
+        </div>
+        <div class="ag-name">Search Agent</div>
+        <div class="ag-desc">联网行业/岗位/薪资调研：实时网络检索、数据聚合、趋势分析报告</div>
+        <div class="ag-tools">
+          <span class="ag-tool">LLM</span>
+          <span class="ag-tool">Web</span>
+          <span class="ag-tool">Scraper</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Connector ── -->
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-proto">HTTPS / SDK / API Key</div>
+    <div class="connector-label">Model Invocation</div>
+    <div class="connector-line"></div>
+    <div class="connector-arrow"></div>
+  </div>
+
+  <!-- ━━━━━━━━━━ LAYER 5 : LLM ━━━━━━━━━━ -->
+  <div class="layer layer--llm">
+    <div class="layer-head">
+      <span class="layer-num">05</span>
+      <span class="layer-title">LLM 大模型层 &mdash; 多模型自动降级适配</span>
+      <span class="layer-badge">Foundation Models</span>
+    </div>
+    <div class="llm-grid">
+      <!-- GPT-5.5 -->
+      <div class="llm-node llm-primary">
+        <div class="llm-badge">Primary</div>
+        <div class="llm-name">GPT-5.5</div>
+        <div class="llm-role">主模型 &mdash; 承担日常简历生成、JD解析、ATS评分、面试模拟等核心推理任务，兼顾质量与速度</div>
+      </div>
+      <!-- Claude -->
+      <div class="llm-node llm-fallback">
+        <div class="llm-badge">Fallback-A</div>
+        <div class="llm-name">Claude</div>
+        <div class="llm-role">长文本/高精度备用 &mdash; 处理超长简历分析、深度职业规划、高精度文书撰写等需要长上下文的场景</div>
+      </div>
+      <!-- Gemini -->
+      <div class="llm-node llm-fallback">
+        <div class="llm-badge">Fallback-B</div>
+        <div class="llm-name">Gemini</div>
+        <div class="llm-role">极速响应备用 &mdash; 主模型超时或限流时自动降级，处理轻量级实时交互、快速摘要、简短回复</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <div class="footer">
+    <div class="footer-legend">
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--layer-fe);border-color:var(--tag-fe)"></div>
+        <span>交互层</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--layer-api);border-color:var(--tag-api)"></div>
+        <span>服务层</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--layer-db);border-color:var(--tag-db)"></div>
+        <span>存储层</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--layer-ag);border-color:var(--tag-ag)"></div>
+        <span>智能体层</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--layer-llm);border-color:var(--tag-llm)"></div>
+        <span>模型层</span>
+      </div>
+    </div>
+    <div class="footer-meta">
+      AI RESUME AGENT &middot; ARCH-BLUEPRINT-V1.0<br>
+      Generated 2026-06-04 &middot; Flat Engineering Blueprint Style
+    </div>
+  </div>
+
+</div><!-- /.canvas -->
+
+</body>
+</html>

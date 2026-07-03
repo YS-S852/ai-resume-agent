@@ -1,0 +1,48 @@
+# ─── Dependencies ───
+node_modules/
+**/node_modules/
+
+# ─── Build outputs ───
+backend/dist/
+backend/tsconfig.tsbuildinfo
+frontend/.next/
+frontend/out/
+frontend/build/
+**/*.tsbuildinfo
+
+# ─── Environment & secrets (NEVER commit) ───
+.env
+.env.local
+.env.*.local
+backend/.env
+backend/.env.local
+backend/.env.*.local
+
+# ─── Logs ───
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── OS / Editor ───
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ─── Qdrant runtime data ───
+qdrant/storage/
+qdrant/qdrant_data/
+
+# ─── Misc ───
+.cache/
+coverage/
+.next/
+
+# ─── Project spec docs (not source code, may contain personal info) ───
+*.docx
+*.zip
+*.pdf
+*.rar
+*.7z
