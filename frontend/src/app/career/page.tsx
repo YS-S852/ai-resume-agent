@@ -1,6 +1,8 @@
 'use client';
 
+import StarField from '@/components/StarField';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLogout } from '@/hooks/useLogout';
 import {
@@ -410,21 +412,7 @@ export default function CareerPage() {
       </div>
 
       {/* Star field */}
-      <div className="star-field">
-        {Array.from({ length: 40 }, (_, i) => (
-          <div
-            key={i}
-            className="star"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 3}s`,
-              opacity: 0.15 + Math.random() * 0.4,
-            }}
-          />
-        ))}
-      </div>
+      <StarField />
 
       {/* Floating Particles */}
       <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden">
@@ -486,9 +474,10 @@ export default function CareerPage() {
               const Icon = item.icon;
               const isActive = item.key === 'career';
               return (
-                <button
+                <Link
                   key={item.key}
-                  onClick={() => router.push(item.href)}
+                  href={item.href}
+                  prefetch
                   className={`
                     w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
                     transition-all duration-200 group relative
@@ -510,7 +499,7 @@ export default function CareerPage() {
                   {isActive && (
                     <ChevronRight size={14} className="ml-auto text-purple-400/60" />
                   )}
-                </button>
+                </Link>
               );
             })}
             {/* Career Vault nav item (active) */}

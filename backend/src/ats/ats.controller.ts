@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Param, Request, HttpCode } from '@nestjs/common';
 import { ATSService } from './ats.service';
-import { Public } from '../auth/public.decorator';
+import { AnalyzeATSDto, OptimizeResumeDto } from './dto/ats.dto';
 
 @Controller('ats')
 export class ATSController {
@@ -9,23 +9,27 @@ export class ATSController {
   @Post('analyze')
   @HttpCode(200)
   async analyze(
-    @Request() req: { user?: { id: number } },
-    @Body() body: { resumeId?: number; jdId?: number; resumeContent: string; jdContent: string },
+    @Request() req: { user: { id: number } },
+    @Body() body: AnalyzeATSDto,
   ) {
-    return this.atsService.analyze(req.user?.id ?? 1, body);
+    return this.atsService.analyze(req.user.id, body);
+  }
+
+  @Post('optimize')
+  @HttpCode(200)
+  async optimize(
+    @Body() body: OptimizeResumeDto,
+  ) {
+    return this.atsService.optimize(body);
   }
 
   @Get('history')
-  @Public()
-  async getHistory(@Request() req: { user?: { id: number } }) {
-    if (!req.user) return [];
+  async getHistory(@Request() req: { user: { id: number } }) {
     return this.atsService.getHistory(req.user.id);
   }
 
   @Get(':id')
-  @Public()
-  async getReport(@Request() req: { user?: { id: number } }, @Param('id') id: string) {
-    if (!req.user) return null;
+  async getReport(@Request() req: { user: { id: number } }, @Param('id') id: string) {
     return this.atsService.getReport(+id, req.user.id);
   }
 }

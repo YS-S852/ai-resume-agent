@@ -1,6 +1,8 @@
 'use client';
 
+import StarField from '@/components/StarField';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLogout } from '@/hooks/useLogout';
 import {
@@ -100,23 +102,6 @@ const navItems = [
   { icon: BookOpen, label: '知识库', key: 'career', href: '/career' },
   { icon: Search, label: '联网调研', key: 'search', href: '/search' },
 ];
-
-/* =====================================================
-   STAR GENERATOR
-   ===================================================== */
-function generateStars(count: number) {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i,
-    left: `${Math.random() * 100}%`,
-    top: `${Math.random() * 100}%`,
-    animationDelay: `${Math.random() * 3}s`,
-    animationDuration: `${2 + Math.random() * 3}s`,
-    opacity: 0.15 + Math.random() * 0.4,
-    size: Math.random() > 0.9 ? 3 : Math.random() > 0.7 ? 2 : 1,
-  }));
-}
-
-const stars = generateStars(50);
 
 /* =====================================================
    TOAST COMPONENT
@@ -649,23 +634,7 @@ export default function JDAnalysisPage() {
       </div>
 
       {/* Star field */}
-      <div className="star-field">
-        {stars.map((star) => (
-          <div
-            key={star.id}
-            className="star"
-            style={{
-              left: star.left,
-              top: star.top,
-              width: `${star.size}px`,
-              height: `${star.size}px`,
-              opacity: star.opacity,
-              animationDelay: star.animationDelay,
-              animationDuration: star.animationDuration,
-            }}
-          />
-        ))}
-      </div>
+      <StarField count={50} />
 
       {/* Floating Particles */}
       <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden">
@@ -727,12 +696,11 @@ export default function JDAnalysisPage() {
               const Icon = item.icon;
               const isActive = activeNav === item.key;
               return (
-                <button
+                <NextLink
                   key={item.key}
-                  onClick={() => {
-                    setActiveNav(item.key);
-                    router.push(item.href);
-                  }}
+                  href={item.href}
+                  prefetch
+                  onClick={() => setActiveNav(item.key)}
                   className={`
                     w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
                     transition-all duration-200 group relative
@@ -752,7 +720,7 @@ export default function JDAnalysisPage() {
                   />
                   <span>{item.label}</span>
                   {isActive && <ChevronRight size={14} className="ml-auto text-purple-400/60" />}
-                </button>
+                </NextLink>
               );
             })}
           </nav>

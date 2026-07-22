@@ -1,15 +1,32 @@
 'use client';
 
-import { useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { authApi } from '@/lib/api';
 
-export default function AutoLogin() {
-  useEffect(() => {
-    const autoLogin = async () => {
-      if (typeof window === 'undefined') return;
-      const existingToken = localStorage.getItem('token');
-      if (existingToken) return; // already logged in
+export default function AutoLogin({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const [ready, setReady] = useState(false);
+  const isAuthPage = pathname === '/login' || pathname === '/register';
+  const demoLoginEnabled =
+    process.env.NEXT_PUBLIC_DEMO_AUTO_LOGIN === 'true' ||
+    process.env.NODE_ENV === 'development';
 
+  useEffect(() => {
+    let active = true;
+    const autoLogin = async () => {
+      if (isAuthPage || !demoLoginEnabled) {
+        if (active) setReady(true);
+        return;
+      }
+
+      const existingToken = localStorage.getItem('token');
+      if (existingToken) {
+        if (active) setReady(true);
+        return;
+      }
+
+      setReady(false);
       try {
         // Try to login with default credentials
         const res = await authApi.login({ username: 'user', password: '123456' });
@@ -32,11 +49,16 @@ export default function AutoLogin() {
         } catch {
           // Registration failed, user can login manually
         }
+      } finally {
+        if (active) setReady(true);
       }
     };
 
     autoLogin();
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [isAuthPage, demoLoginEnabled]);
 
-  return null; // renders nothing
+  return ready ? children : null;
 }

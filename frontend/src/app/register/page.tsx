@@ -1,23 +1,9 @@
 'use client';
 
+import StarField from '@/components/StarField';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { User, Lock, Mail, Eye, EyeOff, Rocket, Sparkles, ArrowRight, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { authApi } from '@/lib/api';
-
-// Generate random star positions
-function generateStars(count: number) {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i,
-    left: `${Math.random() * 100}%`,
-    top: `${Math.random() * 100}%`,
-    animationDelay: `${Math.random() * 3}s`,
-    animationDuration: `${2 + Math.random() * 3}s`,
-    opacity: 0.2 + Math.random() * 0.6,
-    size: Math.random() > 0.9 ? 3 : Math.random() > 0.7 ? 2 : 1,
-  }));
-}
-
-const stars = generateStars(80);
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
@@ -135,23 +121,7 @@ export default function RegisterPage() {
       </div>
 
       {/* Star Field */}
-      <div className="star-field">
-        {stars.map((star) => (
-          <div
-            key={star.id}
-            className="star"
-            style={{
-              left: star.left,
-              top: star.top,
-              width: `${star.size}px`,
-              height: `${star.size}px`,
-              opacity: star.opacity,
-              animationDelay: star.animationDelay,
-              animationDuration: star.animationDuration,
-            }}
-          />
-        ))}
-      </div>
+      <StarField count={80} bright />
 
       {/* Floating Particles */}
       <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden">

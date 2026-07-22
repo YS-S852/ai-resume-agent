@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiService, ChatMessage } from '../ai/ai.service';
 
@@ -20,6 +20,7 @@ export class InterviewService {
   }
 
   async generateQuestions(userId: number, sessionId: number, jdContent: string, resumeContent: string) {
+    await this.assertOwnership(sessionId, userId);
     const questions = await this.aiService.generateInterviewQuestions(jdContent, resumeContent);
 
     await this.prisma.interviewRecord.update({
@@ -31,6 +32,7 @@ export class InterviewService {
   }
 
   async chat(userId: number, sessionId: number, history: ChatMessage[], jdContent: string) {
+    await this.assertOwnership(sessionId, userId);
     const reply = await this.aiService.mockInterviewChat(history, jdContent);
     return { reply };
   }
@@ -40,8 +42,10 @@ export class InterviewService {
    */
   async saveAnswers(
     sessionId: number,
+    userId: number,
     answers: Array<{ question?: string; answer: string }>,
   ) {
+    await this.assertOwnership(sessionId, userId);
     return this.prisma.interviewRecord.update({
       where: { id: sessionId },
       data: { answers: answers as any },
@@ -61,6 +65,7 @@ export class InterviewService {
       jdContent: string;
     },
   ) {
+    await this.assertOwnership(sessionId, userId);
     const report = await this.aiService.scoreInterview(
       payload.questions,
       payload.answers,
@@ -87,7 +92,8 @@ export class InterviewService {
     return { ...report, sessionId, userId };
   }
 
-  async saveFeedback(sessionId: number, feedback: Record<string, unknown>, score: number) {
+  async saveFeedback(sessionId: number, userId: number, feedback: Record<string, unknown>, score: number) {
+    await this.assertOwnership(sessionId, userId);
     return this.prisma.interviewRecord.update({
       where: { id: sessionId },
       data: { feedback: feedback as any, score },
@@ -105,5 +111,15 @@ export class InterviewService {
     return this.prisma.interviewRecord.findFirst({
       where: { id, userId },
     });
+  }
+
+  private async assertOwnership(sessionId: number, userId: number) {
+    const session = await this.prisma.interviewRecord.findFirst({
+      where: { id: sessionId, userId },
+      select: { id: true },
+    });
+    if (!session) {
+      throw new NotFoundException(`面试会话 #${sessionId} 不存在`);
+    }
   }
 }

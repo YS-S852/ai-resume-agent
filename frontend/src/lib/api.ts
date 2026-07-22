@@ -98,6 +98,8 @@ export const jdExtractApi = {
 export const atsApi = {
   analyze: (data: { resumeContent: string; jdContent: string; resumeId?: number; jdId?: number }) =>
     api.post('/ats/analyze', data),
+  optimize: (data: { resumeContent: string; jdContent: string }) =>
+    api.post('/ats/optimize', data),
   getHistory: () => api.get('/ats/history'),
   getReport: (id: number) => api.get(`/ats/${id}`),
 };
@@ -153,6 +155,7 @@ export const profileApi = {
   get: () => api.get('/profiles'),
   create: (data: Record<string, unknown>) => api.post('/profiles', data),
   update: (data: Record<string, unknown>) => api.put('/profiles', data),
+  importFromText: (rawInput: string) => api.post('/profiles/import', { rawInput }),
   // Education
   getEducation: () => api.get('/profiles/education'),
   createEducation: (data: Record<string, unknown>) => api.post('/profiles/education', data),

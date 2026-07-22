@@ -7,10 +7,8 @@ import {
   HttpCode,
 } from '@nestjs/common';
 import { AiService, ChatMessage } from './ai.service';
-import { Public } from '../auth/public.decorator';
 
 @Controller('ai')
-@Public()
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
