@@ -233,6 +233,7 @@ ${resumeContent}`,
     "expectedPoints": ["期望回答要点1", "期望回答要点2"],
     "difficulty": "easy|medium|hard"
   }
+
 ]`,
       },
       {
@@ -247,6 +248,46 @@ ${resumeContent}`,
       return JSON.parse(cleaned);
     } catch {
       return [];
+    }
+  }
+
+  async optimizeResumeForJD(
+    resumeContent: string,
+    jdContent: string,
+  ): Promise<{ optimizedContent: string; changes: string[] }> {
+    const messages: ChatMessage[] = [
+      {
+        role: 'system',
+        content: `你是资深简历顾问和 ATS 优化专家。请在不编造经历的前提下，针对目标 JD 优化候选人的简历。
+
+严格遵守：
+- 保留原简历中的姓名、公司、学校、时间、职位、项目和客观数据，不得虚构不存在的技能、项目或成果
+- 可以重组表达、补充 JD 中已有且原简历能够支持的关键词、使用 STAR 结构，并指出仍需候选人补充的数据
+- optimizedContent 必须是可直接编辑使用的纯文本完整简历，不要使用 Markdown 代码块
+- changes 列出 3-8 条本次实际修改
+
+严格按 JSON 输出：
+{
+  "optimizedContent": "优化后的完整简历文本",
+  "changes": ["修改说明1", "修改说明2"]
+}`,
+      },
+      {
+        role: 'user',
+        content: `【目标 JD】\n${jdContent}\n\n【原始简历】\n${resumeContent}`,
+      },
+    ];
+
+    const result = await this.chat(messages, { model: 'pro', temperature: 0.25 });
+    try {
+      const cleaned = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      return {
+        optimizedContent: String(parsed.optimizedContent ?? '').trim(),
+        changes: Array.isArray(parsed.changes) ? parsed.changes.map(String) : [],
+      };
+    } catch {
+      return { optimizedContent: result.trim(), changes: [] };
     }
   }
 
@@ -501,18 +542,36 @@ ${resumeContent}`,
     const messages: ChatMessage[] = [
       {
         role: 'system',
-        content: `你是一个信息提取专家AI。从用户的自然语言输入中提取结构化职业信息。
-严格按JSON格式输出：
+        content: `你是职业档案信息提取专家。只提取用户明确提供的信息，不推测、不补全、不编造。缺失的字符串输出空字符串，缺失的数组输出空数组。
+严格按以下 JSON 格式输出，不要添加额外文字：
 {
-  "fullName": "姓名(如有)",
-  "position": "当前/目标职位",
-  "experience": "工作年限",
-  "company": "当前公司",
-  "industry": "行业",
-  "education": {"school": "学校", "major": "专业", "degree": "学历"},
-  "skills": ["技能1", "技能2"],
-  "workHistory": [{"company": "公司", "position": "职位", "duration": "时间"}],
-  "projects": [{"name": "项目名", "techStack": "技术栈", "role": "角色"}]
+  "profile": {
+    "fullName": "姓名",
+    "phone": "电话",
+    "city": "城市",
+    "jobTitle": "当前职位",
+    "jobIntention": "求职意向",
+    "expectedSalary": "期望薪资",
+    "summary": "基于原文整理的职业简介"
+  },
+  "education": [{
+    "school": "学校", "major": "专业", "degree": "学历",
+    "startDate": "开始时间", "endDate": "结束时间", "gpa": "GPA", "honors": "荣誉"
+  }],
+  "workExperience": [{
+    "company": "公司", "industry": "行业", "position": "职位",
+    "startDate": "开始时间", "endDate": "结束时间",
+    "responsibilities": "职责", "achievements": "成果"
+  }],
+  "projects": [{
+    "name": "项目名", "startDate": "开始时间", "endDate": "结束时间",
+    "techStack": "逗号分隔的技术栈", "background": "背景",
+    "responsibilities": "职责", "contributions": "个人贡献", "results": "结果"
+  }],
+  "skills": [{
+    "category": "tech/software/language/certificate 四选一",
+    "name": "技能名称", "level": "熟练度"
+  }]
 }`,
       },
       { role: 'user', content: rawInput },

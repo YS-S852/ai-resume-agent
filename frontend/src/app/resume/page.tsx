@@ -1,5 +1,6 @@
 'use client';
 
+import StarField from '@/components/StarField';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   FileText,
@@ -337,23 +338,6 @@ const generationStageLabel: Record<GenerationStage, string> = {
   saving: '保存草稿中',
   done: '生成完成',
 };
-
-/* =====================================================
-   STAR GENERATOR
-   ===================================================== */
-function generateStars(count: number) {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i,
-    left: `${Math.random() * 100}%`,
-    top: `${Math.random() * 100}%`,
-    animationDelay: `${Math.random() * 3}s`,
-    animationDuration: `${2 + Math.random() * 3}s`,
-    opacity: 0.15 + Math.random() * 0.4,
-    size: Math.random() > 0.9 ? 3 : Math.random() > 0.7 ? 2 : 1,
-  }));
-}
-
-const stars = generateStars(50);
 
 /* =====================================================
    TOAST COMPONENT
@@ -1230,23 +1214,7 @@ export default function ResumeEditorPage() {
       </div>
 
       {/* Star field */}
-      <div className="star-field">
-        {stars.map((star) => (
-          <div
-            key={star.id}
-            className="star"
-            style={{
-              left: star.left,
-              top: star.top,
-              width: `${star.size}px`,
-              height: `${star.size}px`,
-              opacity: star.opacity,
-              animationDelay: star.animationDelay,
-              animationDuration: star.animationDuration,
-            }}
-          />
-        ))}
-      </div>
+      <StarField count={50} />
 
       {/* Floating Particles */}
       <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden">

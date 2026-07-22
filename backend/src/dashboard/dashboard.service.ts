@@ -6,21 +6,19 @@ export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getStats(userId: number) {
-    // Resume count
-    const resumeCount = await this.prisma.resume.count({
-      where: { userId },
-    });
+    const [resumeCount, jobApplicationCount, atsReports, recentActivitiesRaw] =
+      await Promise.all([
+        this.prisma.resume.count({ where: { userId } }),
+        this.prisma.careerDocument.count({
+          where: { userId, type: 'job_application' },
+        }),
+        this.prisma.atsReport.findMany({
+          where: { userId },
+          select: { overallScore: true },
+        }),
+        this.getRecentActivities(userId),
+      ]);
 
-    // Job description count (represents job applications)
-    const jobApplicationCount = await this.prisma.jobDescription.count({
-      where: { userId },
-    });
-
-    // ATS average score
-    const atsReports = await this.prisma.atsReport.findMany({
-      where: { userId },
-      select: { overallScore: true },
-    });
     const atsAvgScore =
       atsReports.length > 0
         ? Math.round(
@@ -28,9 +26,6 @@ export class DashboardService {
               atsReports.length,
           )
         : 0;
-
-    // Last active time - find the most recent record across all activity types
-    const recentActivitiesRaw = await this.getRecentActivities(userId);
 
     // Determine lastActive from the most recent activity
     const lastActive =
@@ -61,11 +56,33 @@ export class DashboardService {
     }[] = [];
 
     // Resume activities
-    const resumes = await this.prisma.resume.findMany({
-      where: { userId },
-      orderBy: { updatedAt: 'desc' },
-      take: 5,
-    });
+    const [resumes, atsReports, interviews, jds, applications] = await Promise.all([
+      this.prisma.resume.findMany({
+        where: { userId },
+        orderBy: { updatedAt: 'desc' },
+        take: 5,
+      }),
+      this.prisma.atsReport.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+      this.prisma.interviewRecord.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+      this.prisma.jobDescription.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+      this.prisma.careerDocument.findMany({
+        where: { userId, type: 'job_application' },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+    ]);
     resumes.forEach((r) => {
       activities.push({
         action: `简历「${r.title}」已更新`,
@@ -75,11 +92,6 @@ export class DashboardService {
     });
 
     // ATS report activities
-    const atsReports = await this.prisma.atsReport.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-    });
     atsReports.forEach((r) => {
       activities.push({
         action: `ATS检测完成 - 得分 ${r.overallScore}/100`,
@@ -89,11 +101,6 @@ export class DashboardService {
     });
 
     // Interview activities
-    const interviews = await this.prisma.interviewRecord.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-    });
     interviews.forEach((r) => {
       activities.push({
         action: `面试模拟 - ${r.type === 'mock' ? '模拟面试' : r.type}`,
@@ -103,16 +110,19 @@ export class DashboardService {
     });
 
     // JD activities
-    const jds = await this.prisma.jobDescription.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-    });
     jds.forEach((j) => {
       activities.push({
         action: `新增JD - ${j.title}`,
         type: 'jd',
         createdAt: j.createdAt,
+      });
+    });
+
+    applications.forEach((application) => {
+      activities.push({
+        action: `新增投递 - ${application.title}`,
+        type: 'job',
+        createdAt: application.createdAt,
       });
     });
 

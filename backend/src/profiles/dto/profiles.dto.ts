@@ -39,6 +39,16 @@ export class UpdateProfileDto {
   @IsOptional()
   fullName?: string;
 
+  @ApiPropertyOptional({ example: '13800138000' })
+  @IsString()
+  @IsOptional()
+  phone?: string;
+
+  @ApiPropertyOptional({ example: 'https://example.com' })
+  @IsString()
+  @IsOptional()
+  website?: string;
+
   @ApiPropertyOptional({ example: '北京市朝阳区' })
   @IsString()
   @IsOptional()
@@ -63,6 +73,15 @@ export class UpdateProfileDto {
   @IsString()
   @IsOptional()
   summary?: string;
+}
+
+export class ImportProfileDto {
+  @ApiPropertyOptional({
+    example: '我是 Java 开发工程师，工作 3 年，参与过支付系统开发，熟悉 Redis 和 MySQL。',
+  })
+  @IsString()
+  @IsNotEmpty()
+  rawInput: string;
 }
 
 export class CreateEducationDto {

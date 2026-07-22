@@ -15,8 +15,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
-        <AutoLogin />
-        {children}
+        <AutoLogin>{children}</AutoLogin>
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 'use client';
 
+import StarField from '@/components/StarField';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, Globe, Building2, TrendingUp, DollarSign,
@@ -23,21 +24,6 @@ interface HistoryItem {
   results: any;
   createdAt: string;
 }
-
-/* ---- Stars ---- */
-function generateStars(count: number) {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i,
-    left: `${Math.random() * 100}%`,
-    top: `${Math.random() * 100}%`,
-    animationDelay: `${Math.random() * 3}s`,
-    animationDuration: `${2 + Math.random() * 3}s`,
-    opacity: 0.15 + Math.random() * 0.4,
-    size: Math.random() > 0.9 ? 3 : Math.random() > 0.7 ? 2 : 1,
-  }));
-}
-
-const stars = generateStars(50);
 
 /* ---- Tabs ---- */
 const tabs = [
@@ -156,11 +142,7 @@ export default function SearchPage() {
         <div className="aurora-layer aurora-layer-2" />
         <div className="aurora-layer aurora-layer-3" />
       </div>
-      <div className="star-field">
-        {stars.map(s => (
-          <div key={s.id} className="star" style={{ left: s.left, top: s.top, width: `${s.size}px`, height: `${s.size}px`, opacity: s.opacity, animationDelay: s.animationDelay, animationDuration: s.animationDuration }} />
-        ))}
-      </div>
+      <StarField count={50} />
 
       {/* Top nav */}
       <header className="relative z-20 px-6 py-3 flex items-center justify-between" style={{ background: 'rgba(10,10,26,0.6)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>

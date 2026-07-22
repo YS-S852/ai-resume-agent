@@ -28,6 +28,7 @@ import {
   UpdateProjectDto,
   CreateSkillDto,
   UpdateSkillDto,
+  ImportProfileDto,
 } from './dto/profiles.dto';
 
 @ApiTags('用户档案')
@@ -48,6 +49,16 @@ export class ProfilesController {
   @ApiOperation({ summary: '获取当前用户完整档案（含教育、工作经历、项目、技能）' })
   async getFullProfile(@Request() req: { user: { id: number } }) {
     return await this.profilesService.getFullProfile(req.user.id);
+  }
+
+  @Post('import')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '从自然语言提取职业信息并合并到当前用户档案' })
+  async importProfile(
+    @Request() req: { user: { id: number } },
+    @Body() dto: ImportProfileDto,
+  ) {
+    return this.profilesService.importFromText(req.user.id, dto.rawInput);
   }
 
   @Post()

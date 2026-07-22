@@ -1,6 +1,8 @@
 'use client';
 
+import StarField from '@/components/StarField';
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLogout } from '@/hooks/useLogout';
 import {
@@ -41,6 +43,8 @@ import {
   Loader2,
   Save,
   AlertCircle,
+  Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
 
 /* ================================================================
@@ -213,6 +217,14 @@ export default function ProfilePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [profileRevision, setProfileRevision] = useState(0);
+
+  /* ---- AI import state ---- */
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importInput, setImportInput] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importSummary, setImportSummary] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -288,7 +300,36 @@ export default function ProfilePage() {
       }
     };
     fetchProfile();
-  }, [mounted]);
+  }, [mounted, profileRevision]);
+
+  const handleImportProfile = async () => {
+    if (!importInput.trim()) return;
+    setImportLoading(true);
+    setImportError('');
+    setImportSummary('');
+    try {
+      const res = await profileApi.importFromText(importInput.trim());
+      const data = res.data?.data || res.data;
+      const counts = data.imported || {};
+      const added = [
+        counts.education ? `${counts.education} 条教育经历` : '',
+        counts.workExperience ? `${counts.workExperience} 条工作经历` : '',
+        counts.projects ? `${counts.projects} 个项目` : '',
+        counts.skills ? `${counts.skills} 项技能` : '',
+      ].filter(Boolean);
+      setImportSummary(
+        added.length > 0
+          ? `档案已更新，并新增${added.join('、')}。`
+          : '档案基本信息已更新；没有发现需要新增的重复外经历。',
+      );
+      setProfileRevision((revision) => revision + 1);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setImportError(error.response?.data?.message || 'AI 解析失败，请检查输入后重试');
+    } finally {
+      setImportLoading(false);
+    }
+  };
 
   const handleTabChange = (key: TabKey) => {
     if (key === activeTab || tabAnimating) return;
@@ -312,21 +353,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Star field */}
-      <div className="star-field">
-        {Array.from({ length: 40 }, (_, i) => (
-          <div
-            key={i}
-            className="star"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 3}s`,
-              opacity: 0.15 + Math.random() * 0.4,
-            }}
-          />
-        ))}
-      </div>
+      <StarField />
 
       {/* Floating Particles */}
       <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden">
@@ -388,9 +415,11 @@ export default function ProfilePage() {
               const Icon = item.icon;
               const isActive = activeNav === item.key;
               return (
-                <button
+                <Link
                   key={item.key}
-                  onClick={() => { setActiveNav(item.key); router.push(item.href); }}
+                  href={item.href}
+                  prefetch
+                  onClick={() => setActiveNav(item.key)}
                   className={`
                     w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
                     transition-all duration-200 group relative
@@ -412,7 +441,7 @@ export default function ProfilePage() {
                   {isActive && (
                     <ChevronRight size={14} className="ml-auto text-purple-400/60" />
                   )}
-                </button>
+                </Link>
               );
             })}
           </nav>
@@ -530,14 +559,27 @@ export default function ProfilePage() {
                     <h3 className="text-xl font-bold text-white">{profileData.fullName || '未设置姓名'}</h3>
                     <p className="text-white/40 text-sm mt-0.5">{profileData.jobIntention || '未设置求职意向'}</p>
                   </div>
-                  <button
-                    onClick={openEditModal}
-                    className="btn-gradient flex items-center justify-center gap-2 text-sm px-6 py-2.5 w-auto"
-                    style={{ width: 'auto' }}
-                  >
-                    <Pencil size={15} />
-                    <span>编辑资料</span>
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setImportError('');
+                        setImportSummary('');
+                        setImportModalOpen(true);
+                      }}
+                      className="flex items-center justify-center gap-2 rounded-xl border border-cyan-500/25 bg-cyan-500/10 px-4 py-2.5 text-sm font-medium text-cyan-300 hover:bg-cyan-500/15 transition-colors"
+                    >
+                      <Sparkles size={15} />
+                      <span>AI 智能录入</span>
+                    </button>
+                    <button
+                      onClick={openEditModal}
+                      className="btn-gradient flex items-center justify-center gap-2 text-sm px-6 py-2.5 w-auto"
+                      style={{ width: 'auto' }}
+                    >
+                      <Pencil size={15} />
+                      <span>编辑资料</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -936,6 +978,80 @@ export default function ProfilePage() {
           )}
         </div>
       </main>
+
+      {importModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+          onClick={() => !importLoading && setImportModalOpen(false)}
+        >
+          <div
+            className="glass-card w-full max-w-2xl spring-in"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 p-6">
+              <div>
+                <h3 className="flex items-center gap-2 text-xl font-bold text-white">
+                  <Sparkles size={18} className="text-cyan-400" />
+                  AI 智能录入
+                </h3>
+                <p className="mt-1 text-sm text-white/40">描述你的经历，系统会提取并合并到现有档案</p>
+              </div>
+              <button
+                onClick={() => setImportModalOpen(false)}
+                disabled={importLoading}
+                className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors disabled:opacity-50"
+                aria-label="关闭智能录入"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <textarea
+                value={importInput}
+                onChange={(event) => setImportInput(event.target.value)}
+                rows={8}
+                placeholder="例如：我是一名前端工程师，2022 年至今在某公司负责管理后台，使用 React、TypeScript，主导性能优化后首屏速度提升 35%..."
+                className="glass-input resize-none leading-relaxed"
+              />
+              <p className="text-xs leading-relaxed text-white/35">
+                AI 只会合并明确提供的信息，并按学校、公司职位、项目名和技能名去重。导入后仍可手动修正。
+              </p>
+              {importError && (
+                <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                  <AlertCircle size={16} />
+                  <span>{importError}</span>
+                </div>
+              )}
+              {importSummary && (
+                <div className="flex items-start gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                  <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0" />
+                  <span>{importSummary}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-white/10 p-6">
+              <button
+                onClick={() => setImportModalOpen(false)}
+                disabled={importLoading}
+                className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm font-medium hover:bg-white/10 hover:text-white/80 transition-colors disabled:opacity-50"
+              >
+                {importSummary ? '完成' : '取消'}
+              </button>
+              <button
+                onClick={handleImportProfile}
+                disabled={importLoading || !importInput.trim()}
+                className="btn-gradient flex items-center justify-center gap-2 px-6 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {importLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                <span>{importLoading ? 'AI 解析中...' : '解析并导入'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ============================================ */}
       {/* EDIT PROFILE MODAL                           */}

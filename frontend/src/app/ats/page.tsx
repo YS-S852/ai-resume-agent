@@ -1,6 +1,8 @@
 'use client';
 
+import StarField from '@/components/StarField';
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLogout } from '@/hooks/useLogout';
 import {
@@ -34,6 +36,7 @@ import {
   Award,
   TrendingUp,
   BookOpen,
+  Sparkles,
 } from 'lucide-react';
 import { atsApi } from '@/lib/api';
 
@@ -202,6 +205,8 @@ export default function ATSPage() {
   const [result, setResult] = useState<ATSResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [optimizing, setOptimizing] = useState(false);
+  const [optimizedChanges, setOptimizedChanges] = useState<string[]>([]);
 
   // History state
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -239,6 +244,7 @@ export default function ATSPage() {
     setError(null);
     setLoading(true);
     setResult(null);
+    setOptimizedChanges([]);
     try {
       const res = await atsApi.analyze({
         resumeContent: resumeContent.trim(),
@@ -268,6 +274,28 @@ export default function ATSPage() {
       setError(axiosErr.response?.data?.message || axiosErr.message || 'ATS 检测失败，请稍后重试');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOptimize = async () => {
+    if (!resumeContent.trim() || !jdContent.trim()) return;
+    setOptimizing(true);
+    setError(null);
+    try {
+      const res = await atsApi.optimize({
+        resumeContent: resumeContent.trim(),
+        jdContent: jdContent.trim(),
+      });
+      const data = res.data?.data || res.data;
+      if (!data.optimizedContent) throw new Error('AI 未返回可用的优化内容');
+      setResumeContent(data.optimizedContent);
+      setOptimizedChanges(Array.isArray(data.changes) ? data.changes : []);
+      document.getElementById('ats-input')?.scrollIntoView({ behavior: 'smooth' });
+    } catch (err: unknown) {
+      const apiError = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(apiError.response?.data?.message || apiError.message || '简历优化失败，请稍后重试');
+    } finally {
+      setOptimizing(false);
     }
   };
 
@@ -312,6 +340,7 @@ export default function ATSPage() {
     setError(null);
     setResumeContent('');
     setJdContent('');
+    setOptimizedChanges([]);
   };
 
   return (
@@ -324,21 +353,7 @@ export default function ATSPage() {
       </div>
 
       {/* Star field */}
-      <div className="star-field">
-        {Array.from({ length: 40 }, (_, i) => (
-          <div
-            key={i}
-            className="star"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 3}s`,
-              opacity: 0.15 + Math.random() * 0.4,
-            }}
-          />
-        ))}
-      </div>
+      <StarField />
 
       {/* Floating Particles */}
       <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden">
@@ -400,9 +415,10 @@ export default function ATSPage() {
               const Icon = item.icon;
               const isActive = activeNav === item.key;
               return (
-                <button
+                <Link
                   key={item.key}
-                  onClick={() => router.push(item.href)}
+                  href={item.href}
+                  prefetch
                   className={`
                     w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
                     transition-all duration-200 group relative
@@ -424,7 +440,7 @@ export default function ATSPage() {
                   {isActive && (
                     <ChevronRight size={14} className="ml-auto text-purple-400/60" />
                   )}
-                </button>
+                </Link>
               );
             })}
           </nav>
@@ -507,7 +523,7 @@ export default function ATSPage() {
           </div>
 
           {/* ── Input Section ────────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 slide-in-up" style={{ animationDelay: '0.15s' }}>
+          <div id="ats-input" className="grid grid-cols-1 lg:grid-cols-2 gap-5 slide-in-up" style={{ animationDelay: '0.15s' }}>
             {/* Resume Input */}
             <div className="glass-card p-6">
               <div className="flex items-center gap-2 mb-4">
@@ -628,10 +644,32 @@ export default function ATSPage() {
             <div id="ats-result" className="space-y-6">
               {/* Score Overview */}
               <div className="glass-card p-8 slide-in-up" style={{ animationDelay: '0.1s' }}>
-                <div className="flex items-center gap-2 mb-6">
+                <div className="flex flex-wrap items-center gap-3 mb-6">
                   <BarChart3 size={18} className="text-purple-400" />
                   <h3 className="text-white font-semibold text-lg">ATS 评分总览</h3>
+                  <button
+                    onClick={handleOptimize}
+                    disabled={optimizing || !resumeContent.trim() || !jdContent.trim()}
+                    className="ml-auto flex items-center gap-2 rounded-xl border border-purple-500/25 bg-purple-500/10 px-4 py-2 text-sm font-medium text-purple-300 hover:bg-purple-500/15 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {optimizing ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                    <span>{optimizing ? '优化中...' : '一键优化简历'}</span>
+                  </button>
                 </div>
+
+                {optimizedChanges.length > 0 && (
+                  <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-3">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-emerald-300">
+                      <CheckCircle2 size={15} />
+                      优化结果已回填到简历输入框
+                    </div>
+                    <ul className="space-y-1 text-xs leading-relaxed text-white/50">
+                      {optimizedChanges.map((change, index) => (
+                        <li key={`${change}-${index}`}>{index + 1}. {change}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <div className="flex flex-col lg:flex-row items-center gap-10">
                   {/* Circular Score */}
