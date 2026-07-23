@@ -187,6 +187,43 @@ const toRecord = (value: unknown): Record<string, unknown> => (
 
 const toArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 
+const normalizeText = (value: unknown): string => String(value ?? '').trim();
+
+const normalizeEducationList = (value: unknown): EduItem[] => {
+  const seen = new Set<string>();
+
+  return toArray(value).reduce<EduItem[]>((items, edu, index) => {
+    const item = toRecord(edu);
+    const normalized = {
+      id: normalizeText(item.id) || `edu-${index + 1}`,
+      school: normalizeText(item.school),
+      degree: normalizeText(item.degree),
+      major: normalizeText(item.major),
+      startDate: normalizeText(item.startDate),
+      endDate: normalizeText(item.endDate),
+      gpa: normalizeText(item.gpa),
+      description: normalizeText(item.description || item.honors),
+    };
+    const fingerprint = [
+      normalized.school,
+      normalized.degree,
+      normalized.major,
+      normalized.startDate,
+      normalized.endDate,
+      normalized.gpa,
+      normalized.description,
+    ].join('|').toLowerCase();
+
+    if (!fingerprint.replace(/\|/g, '') || seen.has(fingerprint)) {
+      return items;
+    }
+
+    seen.add(fingerprint);
+    items.push(normalized);
+    return items;
+  }, []);
+};
+
 const buildGeneratedResumeContent = (
   profileData: Record<string, unknown>,
   generatedData: Record<string, unknown>,
@@ -204,21 +241,7 @@ const buildGeneratedResumeContent = (
     ? generatedData.skillsSummary.trim()
     : '';
 
-  const education = profileEducation.length > 0
-    ? profileEducation.map((edu, index) => {
-        const item = toRecord(edu);
-        return {
-          id: String(item.id ?? `edu-${index + 1}`),
-          school: String(item.school ?? ''),
-          degree: String(item.degree ?? ''),
-          major: String(item.major ?? ''),
-          startDate: String(item.startDate ?? ''),
-          endDate: String(item.endDate ?? ''),
-          gpa: String(item.gpa ?? ''),
-          description: String(item.description ?? item.honors ?? ''),
-        };
-      })
-    : [];
+  const education = normalizeEducationList(profileEducation);
 
   const work = generatedExperience.length > 0
     ? generatedExperience.map((item, index) => {
@@ -690,19 +713,9 @@ export default function ResumeEditorPage() {
             setProfileBasicInfo(basic);
           }
           // Education
-          const eduList = profileData.education || profileData.workExperience || [];
+          const eduList = profileData.education || [];
           if (Array.isArray(eduList) && eduList.length > 0) {
-            const mappedEdu = eduList.map((e: Record<string, unknown>) => ({
-              id: String(e.id || ''),
-              school: (e.school as string) || '',
-              degree: (e.degree as string) || '',
-              major: (e.major as string) || '',
-              startDate: (e.startDate as string) || '',
-              endDate: (e.endDate as string) || '',
-              gpa: (e.gpa as string) || '',
-              description: (e.honors as string) || '',
-            }));
-            setProfileEducation(mappedEdu);
+            setProfileEducation(normalizeEducationList(eduList));
           }
           // Work experience
           const workList = profileData.workExperience || [];
@@ -805,7 +818,7 @@ export default function ResumeEditorPage() {
             moduleOrder?: ModuleKey[];
           };
           if (c.basicInfo) setBasicInfo(c.basicInfo);
-          if (c.education && c.education.length > 0) setEducation(c.education);
+          setEducation(normalizeEducationList(c.education || []));
           if (c.work && c.work.length > 0) setWork(c.work);
           if (c.projects && c.projects.length > 0) setProjects(c.projects);
           if (c.skills && c.skills.length > 0) setSkills(c.skills);
@@ -813,7 +826,7 @@ export default function ResumeEditorPage() {
         } else {
           // No saved content - use profile defaults
           setBasicInfo({ ...profileBasicInfo });
-          setEducation(profileEducation.map((item) => ({ ...item })));
+          setEducation(normalizeEducationList(profileEducation));
           setWork(profileWork.map((item) => ({ ...item })));
           setProjects(profileProjects.map((item) => ({ ...item })));
           setSkills(profileSkills.map((item) => ({ ...item })));
@@ -822,7 +835,7 @@ export default function ResumeEditorPage() {
       } catch {
         // If fetching resume detail fails, fall back to profile data
         setBasicInfo({ ...profileBasicInfo });
-        setEducation(profileEducation.map((item) => ({ ...item })));
+        setEducation(normalizeEducationList(profileEducation));
         setWork(profileWork.map((item) => ({ ...item })));
         setProjects(profileProjects.map((item) => ({ ...item })));
         setSkills(profileSkills.map((item) => ({ ...item })));
@@ -1031,7 +1044,7 @@ export default function ResumeEditorPage() {
         setTemplate(newItem.templateType);
         setLanguage(newItem.languageType);
         setBasicInfo({ ...content.basicInfo });
-        setEducation(content.education.map((item) => ({ ...item })));
+        setEducation(normalizeEducationList(content.education));
         setWork(content.work.map((item) => ({ ...item })));
         setProjects(content.projects.map((item) => ({ ...item })));
         setSkills(content.skills.map((item) => ({ ...item })));
@@ -1121,13 +1134,15 @@ export default function ResumeEditorPage() {
     }
     setSaving(true);
     try {
+      const cleanEducation = normalizeEducationList(education);
+      setEducation(cleanEducation);
       await resumeApi.update(selectedResumeId, {
         template,
         language,
         content: {
           moduleOrder,
           basicInfo,
-          education,
+          education: cleanEducation,
           work,
           projects,
           skills,

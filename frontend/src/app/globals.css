@@ -37,6 +37,12 @@ body {
   contain: strict; /* 限制重绘范围，避免整页 reflow */
 }
 
+/* Decorative effects are intentionally disabled to keep navigation responsive. */
+.aurora-bg,
+.particle {
+  display: none;
+}
+
 .aurora-layer {
   position: absolute;
   width: 150%;
@@ -44,28 +50,33 @@ body {
   top: -25%;
   left: -25%;
   filter: blur(80px); /* 从 120px 降到 80px，GPU 开销显著降低 */
-  mix-blend-mode: screen;
-  opacity: 0.5;
+  mix-blend-mode: normal;
+  opacity: 0.32;
   will-change: transform; /* 提示浏览器用 GPU 合成层 */
   backface-visibility: hidden;
+}
+
+.aurora-layer {
+  filter: blur(48px);
+  animation: none !important;
 }
 
 .aurora-layer-1 {
   background: radial-gradient(ellipse at 30% 50%, rgba(139, 92, 246, 0.6), transparent 60%),
               radial-gradient(ellipse at 70% 30%, rgba(167, 139, 250, 0.4), transparent 50%);
-  animation: aurora1 18s ease-in-out infinite;
+  animation: aurora1 48s ease-in-out infinite;
 }
 
 .aurora-layer-2 {
   background: radial-gradient(ellipse at 60% 60%, rgba(6, 182, 212, 0.5), transparent 55%),
               radial-gradient(ellipse at 30% 80%, rgba(34, 211, 238, 0.3), transparent 50%);
-  animation: aurora2 22s ease-in-out infinite;
+  animation: aurora2 56s ease-in-out infinite;
 }
 
 .aurora-layer-3 {
   background: radial-gradient(ellipse at 50% 40%, rgba(236, 72, 153, 0.4), transparent 55%),
               radial-gradient(ellipse at 80% 70%, rgba(244, 114, 182, 0.3), transparent 50%);
-  animation: aurora3 20s ease-in-out infinite;
+  animation: aurora3 52s ease-in-out infinite;
 }
 
 @keyframes aurora1 {
@@ -103,7 +114,7 @@ body {
   height: 2px;
   background: white;
   border-radius: 50%;
-  animation: twinkle 3s ease-in-out infinite;
+  animation: twinkle 6s ease-in-out infinite;
   will-change: opacity;
 }
 
@@ -125,35 +136,35 @@ body {
   width: 8px; height: 8px;
   background: #8B5CF6;
   box-shadow: 0 0 12px #8B5CF6;
-  animation: particleFloat1 16s ease-in-out infinite;
+  animation: particleFloat1 32s ease-in-out infinite;
 }
 
 .particle-2 {
   width: 6px; height: 6px;
   background: #22D3EE;
   box-shadow: 0 0 12px #22D3EE;
-  animation: particleFloat2 14s ease-in-out infinite;
+  animation: particleFloat2 28s ease-in-out infinite;
 }
 
 .particle-3 {
   width: 10px; height: 10px;
   background: #EC4899;
   box-shadow: 0 0 12px #EC4899;
-  animation: particleFloat3 18s ease-in-out infinite;
+  animation: particleFloat3 36s ease-in-out infinite;
 }
 
 .particle-4 {
   width: 5px; height: 5px;
   background: #A78BFA;
   box-shadow: 0 0 10px #A78BFA;
-  animation: particleFloat4 20s ease-in-out infinite;
+  animation: particleFloat4 40s ease-in-out infinite;
 }
 
 .particle-5 {
   width: 7px; height: 7px;
   background: #F472B6;
   box-shadow: 0 0 12px #F472B6;
-  animation: particleFloat5 15s ease-in-out infinite;
+  animation: particleFloat5 30s ease-in-out infinite;
 }
 
 @keyframes particleFloat1 {
@@ -205,7 +216,7 @@ body {
   inset: 0;
   border-radius: 50%;
   background: conic-gradient(from 0deg, #8B5CF6, #06B6D4, #EC4899, #A78BFA, #22D3EE, #F472B6, #8B5CF6);
-  animation: spinBorder 4s linear infinite;
+  animation: none;
   padding: 3px;
 }
 
@@ -231,7 +242,7 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: holoFlow 4s linear infinite;
+  animation: none;
 }
 
 @keyframes holoFlow {
@@ -241,9 +252,9 @@ body {
 
 /* Glass Card */
 .glass-card {
-  background: rgba(15, 15, 46, 0.55);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  background: rgba(15, 15, 46, 0.92);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   position: relative;
@@ -258,7 +269,7 @@ body {
   height: 2px;
   background: linear-gradient(90deg, #8B5CF6, #06B6D4, #EC4899, #A78BFA, #22D3EE);
   background-size: 200% 100%;
-  animation: rainbowLine 3s linear infinite;
+  animation: none;
   border-radius: 20px 20px 0 0;
 }
 
@@ -282,7 +293,7 @@ body {
   height: 200%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
   transform: skewX(-15deg);
-  animation: shineSweep 4s ease-in-out infinite;
+  display: none;
 }
 
 @keyframes shineSweep {
@@ -327,7 +338,7 @@ body {
 .btn-gradient {
   background: linear-gradient(135deg, #7C3AED, #6366F1, #3B82F6);
   background-size: 200% 200%;
-  animation: gradientShift 3s ease infinite;
+  animation: none;
   box-shadow: 0 4px 20px rgba(124, 58, 237, 0.35), 0 0 40px rgba(99, 102, 241, 0.15);
   position: relative;
   overflow: hidden;
@@ -356,7 +367,7 @@ body {
   height: 200%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
   transform: skewX(-15deg);
-  animation: btnShine 4s ease-in-out infinite;
+  display: none;
 }
 
 @keyframes gradientShift {

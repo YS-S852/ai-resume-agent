@@ -3,7 +3,6 @@
 import StarField from '@/components/StarField';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import NextLink from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useLogout } from '@/hooks/useLogout';
 import {
   LayoutDashboard,
@@ -269,7 +268,6 @@ function FileDropZone({
    MAIN PAGE COMPONENT
    ===================================================== */
 export default function JDAnalysisPage() {
-  const router = useRouter();
   const handleLogout = useLogout();
   const [mounted, setMounted] = useState(false);
   const [activeNav, setActiveNav] = useState('jd');
