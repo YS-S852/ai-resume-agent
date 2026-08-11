@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Request, HttpCode, ParseIntPipe } from '@nestjs/common';
 import { JDService } from './jd.service';
-import { Public } from '../auth/public.decorator';
+import { CreateJdDto } from './dto/jd.dto';
 
 @Controller('jd')
 export class JDController {
@@ -8,38 +8,46 @@ export class JDController {
 
   @Post()
   @HttpCode(201)
-  async create(@Request() req: { user: { id: number } }, @Body() body: { title: string; company?: string; rawContent: string }) {
-    return this.jdService.create(req.user?.id ?? 1, body);
+  async create(@Request() req: { user: { id: number } }, @Body() body: CreateJdDto) {
+    return this.jdService.create(req.user.id, body);
   }
 
   @Get()
-  @Public()
-  async findAll(@Request() req: { user?: { id: number } }) {
-    if (!req.user) return [];
+  async findAll(@Request() req: { user: { id: number } }) {
     return this.jdService.findAll(req.user.id);
   }
 
   @Get(':id')
-  @Public()
-  async findOne(@Request() req: { user?: { id: number } }, @Param('id') id: string) {
-    if (!req.user) return null;
-    return this.jdService.findOne(+id, req.user.id);
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: { id: number } },
+  ) {
+    return this.jdService.findOne(id, req.user.id);
   }
 
   @Post(':id/analyze')
   @HttpCode(200)
-  async analyze(@Request() req: { user: { id: number } }, @Param('id') id: string) {
-    return this.jdService.analyzeAndSave(+id, req.user?.id ?? 1);
+  async analyze(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: { id: number } },
+  ) {
+    return this.jdService.analyzeAndSave(id, req.user.id);
   }
 
   @Post(':id/match')
   @HttpCode(200)
-  async matchScore(@Request() req: { user: { id: number } }, @Param('id') id: string) {
-    return this.jdService.getMatchScore(+id, req.user?.id ?? 1);
+  async matchScore(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: { id: number } },
+  ) {
+    return this.jdService.getMatchScore(id, req.user.id);
   }
 
   @Delete(':id')
-  async remove(@Request() req: { user: { id: number } }, @Param('id') id: string) {
-    return this.jdService.remove(+id, req.user?.id ?? 1);
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: { id: number } },
+  ) {
+    return this.jdService.remove(id, req.user.id);
   }
 }

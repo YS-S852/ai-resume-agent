@@ -1,6 +1,13 @@
-import { Controller, Get, Post, Body, Param, Request, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Request, HttpCode, ParseIntPipe } from '@nestjs/common';
 import { InterviewService } from './interview.service';
-import { ChatMessage } from '../ai/ai.service';
+import {
+  CreateInterviewSessionDto,
+  GenerateInterviewQuestionsDto,
+  InterviewChatDto,
+  SaveAnswersDto,
+  SaveFeedbackDto,
+  ScoreInterviewDto,
+} from './dto/interview.dto';
 
 @Controller('interview')
 export class InterviewController {
@@ -8,7 +15,10 @@ export class InterviewController {
 
   @Post('session')
   @HttpCode(201)
-  async createSession(@Request() req: { user: { id: number } }, @Body() body: { jobId?: number; type: string }) {
+  async createSession(
+    @Request() req: { user: { id: number } },
+    @Body() body: CreateInterviewSessionDto,
+  ) {
     return this.interviewService.createSession(req.user.id, body);
   }
 
@@ -16,40 +26,40 @@ export class InterviewController {
   @HttpCode(200)
   async generateQuestions(
     @Request() req: { user: { id: number } },
-    @Param('id') id: string,
-    @Body() body: { jdContent: string; resumeContent: string },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: GenerateInterviewQuestionsDto,
   ) {
-    return this.interviewService.generateQuestions(req.user.id, +id, body.jdContent, body.resumeContent);
+    return this.interviewService.generateQuestions(req.user.id, id, body.jdContent, body.resumeContent);
   }
 
   @Post('session/:id/chat')
   @HttpCode(200)
   async chat(
     @Request() req: { user: { id: number } },
-    @Param('id') id: string,
-    @Body() body: { history: ChatMessage[]; jdContent: string },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: InterviewChatDto,
   ) {
-    return this.interviewService.chat(req.user.id, +id, body.history, body.jdContent);
+    return this.interviewService.chat(req.user.id, id, body.history, body.jdContent);
   }
 
   @Post('session/:id/feedback')
   @HttpCode(200)
   async saveFeedback(
     @Request() req: { user: { id: number } },
-    @Param('id') id: string,
-    @Body() body: { feedback: Record<string, unknown>; score: number },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: SaveFeedbackDto,
   ) {
-    return this.interviewService.saveFeedback(+id, req.user.id, body.feedback, body.score);
+    return this.interviewService.saveFeedback(id, req.user.id, body.feedback, body.score);
   }
 
   @Post('session/:id/answers')
   @HttpCode(200)
   async saveAnswers(
     @Request() req: { user: { id: number } },
-    @Param('id') id: string,
-    @Body() body: { answers: Array<{ question?: string; answer: string }> },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: SaveAnswersDto,
   ) {
-    return this.interviewService.saveAnswers(+id, req.user.id, body.answers);
+    return this.interviewService.saveAnswers(id, req.user.id, body.answers);
   }
 
   /**
@@ -60,14 +70,10 @@ export class InterviewController {
   @HttpCode(200)
   async scoreSession(
     @Request() req: { user: { id: number } },
-    @Param('id') id: string,
-    @Body() body: {
-      questions: Array<{ id?: number; question: string; expectedPoints?: string[] }>;
-      answers: Array<{ question?: string; answer: string }>;
-      jdContent: string;
-    },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: ScoreInterviewDto,
   ) {
-    return this.interviewService.scoreAndSave(+id, req.user.id, body);
+    return this.interviewService.scoreAndSave(id, req.user.id, body);
   }
 
   @Get('history')
@@ -76,7 +82,10 @@ export class InterviewController {
   }
 
   @Get('session/:id')
-  async getSession(@Request() req: { user: { id: number } }, @Param('id') id: string) {
-    return this.interviewService.getSession(+id, req.user.id);
+  async getSession(
+    @Request() req: { user: { id: number } },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.interviewService.getSession(id, req.user.id);
   }
 }

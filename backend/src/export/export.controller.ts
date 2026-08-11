@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ExportService } from './export.service';
+import { ExportResumeDto } from './dto/export.dto';
 
 @Controller('export')
 export class ExportController {
@@ -16,7 +17,7 @@ export class ExportController {
   @Post('pdf')
   @HttpCode(HttpStatus.OK)
   async exportPdf(
-    @Body() body: { resumeData: any; template: string },
+    @Body() body: ExportResumeDto,
     @Res() res: Response,
   ) {
     const html = this.exportService.generateResumeHtml(
@@ -35,10 +36,13 @@ export class ExportController {
   @Post('docx')
   @HttpCode(HttpStatus.OK)
   async exportDocx(
-    @Body() body: { resumeData: any; template: string },
+    @Body() body: ExportResumeDto,
     @Res() res: Response,
   ) {
-    const docxBuffer = await this.exportService.generateDocx(body.resumeData);
+    const docxBuffer = await this.exportService.generateDocx(
+      body.resumeData,
+      body.template,
+    );
     res.set({
       'Content-Type':
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

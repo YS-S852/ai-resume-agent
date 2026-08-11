@@ -1,16 +1,43 @@
 import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const userId = 2;
+const DEMO_USERNAME = 'user';
+const DEMO_EMAIL = 'user@resume.ai';
+const DEMO_PASSWORD = '123456';
 
-  // Check if user exists
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) {
-    console.error(`User with id=${userId} not found. Aborting.`);
-    return;
+async function resolveDemoUser() {
+  const hashedPassword = await bcrypt.hash(DEMO_PASSWORD, 10);
+  const existing = await prisma.user.findFirst({
+    where: {
+      OR: [{ username: DEMO_USERNAME }, { email: DEMO_EMAIL }],
+    },
+  });
+
+  if (existing) {
+    return prisma.user.update({
+      where: { id: existing.id },
+      data: {
+        username: existing.username === DEMO_USERNAME ? undefined : DEMO_USERNAME,
+        email: existing.email === DEMO_EMAIL ? undefined : DEMO_EMAIL,
+        password: hashedPassword,
+      },
+    });
   }
+
+  return prisma.user.create({
+    data: {
+      username: DEMO_USERNAME,
+      email: DEMO_EMAIL,
+      password: hashedPassword,
+    },
+  });
+}
+
+async function main() {
+  const user = await resolveDemoUser();
+  const userId = user.id;
   console.log(`Found user: ${user.username} (${user.email})`);
 
   // 1. Profile
@@ -46,6 +73,7 @@ async function main() {
   }
 
   // 2. Education (2 records)
+  await prisma.education.deleteMany({ where: { userId } });
   await prisma.education.createMany({
     data: [
       {
@@ -74,6 +102,7 @@ async function main() {
   console.log('Education records created.');
 
   // 3. WorkExperience (2 records)
+  await prisma.workExperience.deleteMany({ where: { userId } });
   await prisma.workExperience.createMany({
     data: [
       {
@@ -104,6 +133,7 @@ async function main() {
   console.log('WorkExperience records created.');
 
   // 4. Project (2 records)
+  await prisma.project.deleteMany({ where: { userId } });
   await prisma.project.createMany({
     data: [
       {
@@ -134,20 +164,21 @@ async function main() {
   console.log('Project records created.');
 
   // 5. Skill (multiple records, each skill as a separate row)
+  await prisma.skill.deleteMany({ where: { userId } });
   const skills = [
     // 前端框架
-    { userId, category: '前端框架', name: 'React', level: '精通' },
-    { userId, category: '前端框架', name: 'Vue 3', level: '熟练' },
-    { userId, category: '前端框架', name: 'Next.js', level: '熟练' },
+    { userId, category: 'tech', name: 'React', level: '精通' },
+    { userId, category: 'tech', name: 'Vue 3', level: '熟练' },
+    { userId, category: 'tech', name: 'Next.js', level: '熟练' },
     // 语言
-    { userId, category: '语言', name: 'TypeScript', level: '精通' },
-    { userId, category: '语言', name: 'JavaScript', level: '精通' },
-    { userId, category: '语言', name: 'HTML5', level: '精通' },
-    { userId, category: '语言', name: 'CSS3', level: '精通' },
+    { userId, category: 'language', name: 'TypeScript', level: '精通' },
+    { userId, category: 'language', name: 'JavaScript', level: '精通' },
+    { userId, category: 'language', name: 'HTML5', level: '精通' },
+    { userId, category: 'language', name: 'CSS3', level: '精通' },
     // 工程化
-    { userId, category: '工程化', name: 'Webpack', level: '熟练' },
-    { userId, category: '工程化', name: 'Vite', level: '熟练' },
-    { userId, category: '工程化', name: 'Docker', level: '了解' },
+    { userId, category: 'software', name: 'Webpack', level: '熟练' },
+    { userId, category: 'software', name: 'Vite', level: '熟练' },
+    { userId, category: 'software', name: 'Docker', level: '了解' },
   ];
   await prisma.skill.createMany({
     data: skills,
@@ -156,6 +187,11 @@ async function main() {
   console.log('Skill records created.');
 
   // 6. Resume (3 records)
+  // Reset dependent records so repeated seed runs stay idempotent
+  await prisma.atsReport.deleteMany({ where: { userId } });
+  await prisma.interviewRecord.deleteMany({ where: { userId } });
+  await prisma.jobDescription.deleteMany({ where: { userId } });
+  await prisma.resume.deleteMany({ where: { userId } });
   await prisma.resume.createMany({
     data: [
       {

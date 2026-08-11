@@ -63,7 +63,7 @@ export class QdrantService implements OnModuleInit {
    * Upsert (insert or update) a vector point.
    */
   async upsert(
-    id: number,
+    id: number | string,
     vector: number[],
     payload: Record<string, unknown>,
   ): Promise<void> {
@@ -89,7 +89,7 @@ export class QdrantService implements OnModuleInit {
       limit?: number;
       filter?: Record<string, unknown>;
     } = {},
-  ): Promise<{ id: number; score: number; payload: Record<string, unknown> }[]> {
+  ): Promise<{ id: number | string; score: number; payload: Record<string, unknown> }[]> {
     if (!this.ready) throw new Error('Qdrant not ready');
 
     const result = await this.client.search(this.collectionName, {
@@ -100,7 +100,7 @@ export class QdrantService implements OnModuleInit {
     });
 
     return result.map((r) => ({
-      id: r.id as number,
+      id: r.id as number | string,
       score: r.score,
       payload: (r.payload ?? {}) as Record<string, unknown>,
     }));
@@ -109,7 +109,7 @@ export class QdrantService implements OnModuleInit {
   /**
    * Delete a vector point by id.
    */
-  async delete(id: number): Promise<void> {
+  async delete(id: number | string): Promise<void> {
     if (!this.ready) throw new Error('Qdrant not ready');
     await this.client.delete(this.collectionName, {
       wait: true,

@@ -42,7 +42,7 @@ export class ProfilesController {
   @Get()
   @ApiOperation({ summary: '获取当前用户档案' })
   async getProfile(@Request() req: { user: { id: number } }) {
-    try { return await this.profilesService.getProfile(req.user.id); } catch { return null; }
+    return this.profilesService.getProfile(req.user.id);
   }
 
   @Get('full')

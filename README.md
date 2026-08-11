@@ -29,7 +29,7 @@
 
 - **AI 驱动** · 全程接入 DeepSeek V4（`pro` 思考模式 / `flash` 快速模式）
 - **可视化简历编辑器** · 浏览器原生 A4 实时预览，所见即所得
-- **PDF / DOCX 双向导出** · Puppeteer 渲染 PDF，docx 生成 Word
+- **PDF / DOCX 导出** · Puppeteer 渲染 PDF，docx 生成 Word
 - **ATS 简历筛查** · 模拟企业 ATS 系统，给出可读性 / 关键词 / 结构评分
 - **AI 模拟面试** · 根据 JD 自动出题、追问、评分、TTS 朗读
 - **个人知识库** · Qdrant 向量检索 + 语义召回，未启用时自动降级到内存模式

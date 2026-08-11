@@ -14,6 +14,12 @@ import {
 } from '@nestjs/common';
 import { CareerService } from './career.service';
 import { CareerVaultService } from './career-vault.service';
+import {
+  CreateCareerDocumentDto,
+  IndustryReportDto,
+  SearchCareerDto,
+  UpdateCareerDocumentDto,
+} from './dto/career.dto';
 
 @Controller('career')
 export class CareerController {
@@ -42,7 +48,7 @@ export class CareerController {
   @HttpCode(HttpStatus.CREATED)
   async createDocument(
     @Request() req: { user: { id: number } },
-    @Body() dto: { title: string; type: string; content?: string; fileUrl?: string },
+    @Body() dto: CreateCareerDocumentDto,
   ) {
     const doc = await this.careerService.create(req.user.id, dto);
     // Auto-index if content provided
@@ -56,7 +62,7 @@ export class CareerController {
   async updateDocument(
     @Param('id', ParseIntPipe) id: number,
     @Request() req: { user: { id: number } },
-    @Body() dto: any,
+    @Body() dto: UpdateCareerDocumentDto,
   ) {
     const doc = await this.careerService.update(id, req.user.id, dto);
     if (dto.content) {
@@ -70,14 +76,14 @@ export class CareerController {
     @Param('id', ParseIntPipe) id: number,
     @Request() req: { user: { id: number } },
   ) {
-    await this.careerVault.deleteIndex(id);
+    await this.careerVault.deleteIndex(id, req.user.id);
     return this.careerService.remove(id, req.user.id);
   }
 
   @Post('search')
   async search(
     @Request() req: { user: { id: number } },
-    @Body() body: { query: string; topK?: number },
+    @Body() body: SearchCareerDto,
   ) {
     return this.careerVault.search(req.user.id, body.query, body.topK || 5);
   }
@@ -85,7 +91,7 @@ export class CareerController {
   @Post('report/industry')
   async industryReport(
     @Request() req: { user: { id: number } },
-    @Body() body: { industry: string },
+    @Body() body: IndustryReportDto,
   ) {
     return this.careerVault.generateIndustryReport(req.user.id, body.industry);
   }

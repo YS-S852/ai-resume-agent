@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -49,7 +49,7 @@ export class JobsService {
 
   async update(id: number, userId: number, data: Record<string, any>) {
     const existing = await this.prisma.careerDocument.findFirst({ where: { id, userId } });
-    if (!existing) throw new Error('Not found');
+    if (!existing) throw new NotFoundException(`求职记录 #${id} 不存在`);
 
     const currentData = typeof existing.content === 'string' ? JSON.parse(existing.content) : {};
     const merged = { ...currentData, ...data };
@@ -64,7 +64,11 @@ export class JobsService {
   }
 
   async remove(id: number, userId: number) {
-    return this.prisma.careerDocument.deleteMany({ where: { id, userId } });
+    const result = await this.prisma.careerDocument.deleteMany({ where: { id, userId } });
+    if (result.count === 0) {
+      throw new NotFoundException(`求职记录 #${id} 不存在`);
+    }
+    return result;
   }
 
   async getStats(userId: number) {

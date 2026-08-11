@@ -224,6 +224,127 @@ const normalizeEducationList = (value: unknown): EduItem[] => {
   }, []);
 };
 
+const normalizeWorkList = (value: unknown): WorkItem[] => {
+  const seen = new Set<string>();
+
+  return toArray(value).reduce<WorkItem[]>((items, workItem, index) => {
+    const item = toRecord(workItem);
+    const normalized = {
+      id: normalizeText(item.id) || `work-${index + 1}`,
+      company: normalizeText(item.company || item.employer),
+      position: normalizeText(item.position || item.role),
+      startDate: normalizeText(item.startDate),
+      endDate: normalizeText(item.endDate),
+      description: normalizeText(item.description || item.achievements || item.responsibilities),
+    };
+    const fingerprint = [
+      normalized.company,
+      normalized.position,
+      normalized.startDate,
+      normalized.endDate,
+      normalized.description,
+    ].join('|').toLowerCase();
+
+    if (!fingerprint.replace(/\|/g, '') || seen.has(fingerprint)) {
+      return items;
+    }
+
+    seen.add(fingerprint);
+    items.push(normalized);
+    return items;
+  }, []);
+};
+
+const normalizeProjectList = (value: unknown): ProjectItem[] => {
+  const seen = new Set<string>();
+
+  return toArray(value).reduce<ProjectItem[]>((items, project, index) => {
+    const item = toRecord(project);
+    const normalized = {
+      id: normalizeText(item.id) || `project-${index + 1}`,
+      name: normalizeText(item.name),
+      role: normalizeText(item.role || item.contributions),
+      tech: normalizeText(item.tech || item.techStack),
+      startDate: normalizeText(item.startDate),
+      endDate: normalizeText(item.endDate),
+      description: normalizeText(item.description || item.results || item.responsibilities),
+      link: normalizeText(item.link),
+    };
+    const fingerprint = [
+      normalized.name,
+      normalized.role,
+      normalized.tech,
+      normalized.startDate,
+      normalized.endDate,
+      normalized.description,
+      normalized.link,
+    ].join('|').toLowerCase();
+
+    if (!fingerprint.replace(/\|/g, '') || seen.has(fingerprint)) {
+      return items;
+    }
+
+    seen.add(fingerprint);
+    items.push(normalized);
+    return items;
+  }, []);
+};
+
+const normalizeSkillList = (value: unknown): SkillGroup[] => {
+  const seen = new Set<string>();
+
+  return toArray(value).reduce<SkillGroup[]>((items, skill, index) => {
+    const item = toRecord(skill);
+    const normalizedItems = splitTextItems(item.items).join(', ') || normalizeText(item.items || item.name);
+    const normalized = {
+      id: normalizeText(item.id) || `skill-${index + 1}`,
+      category: normalizeText(item.category) || '其他',
+      items: normalizedItems,
+    };
+    const fingerprint = `${normalized.category}|${normalized.items}`.toLowerCase();
+
+    if (!normalized.items || seen.has(fingerprint)) {
+      return items;
+    }
+
+    seen.add(fingerprint);
+    items.push(normalized);
+    return items;
+  }, []);
+};
+
+const normalizeResumeList = (value: unknown): ResumeItem[] => {
+  const seen = new Set<string>();
+
+  return toArray(value).reduce<ResumeItem[]>((items, resume, index) => {
+    const item = toRecord(resume);
+    const id = normalizeText(item.id);
+    const createdAt = item.createdAt ? new Date(item.createdAt as string).toISOString().split('T')[0] : '';
+    const normalized = {
+      id: id || `resume-${index + 1}`,
+      name: normalizeText(item.name || item.title) || '未命名简历',
+      templateType: normalizeTemplate(normalizeText(item.templateType || item.template || 'default')),
+      languageType: normalizeLanguage(normalizeText(item.languageType || item.language || 'zh')),
+      createdAt: normalizeText(item.createdAtDisplay) || createdAt,
+      status: (item.status as ResumeItem['status']) || (item.isActive ? '已完成' : '草稿'),
+    };
+    const fingerprint = id || [
+      normalized.name,
+      normalized.templateType,
+      normalized.languageType,
+      normalized.createdAt,
+    ].join('|').toLowerCase();
+
+    if (seen.has(fingerprint)) {
+      return items;
+    }
+
+    seen.add(fingerprint);
+    items.push(normalized);
+    return items;
+  }, []);
+};
+
 const buildGeneratedResumeContent = (
   profileData: Record<string, unknown>,
   generatedData: Record<string, unknown>,
@@ -243,7 +364,7 @@ const buildGeneratedResumeContent = (
 
   const education = normalizeEducationList(profileEducation);
 
-  const work = generatedExperience.length > 0
+  const work = normalizeWorkList(generatedExperience.length > 0
     ? generatedExperience.map((item, index) => {
         const workItem = toRecord(item);
         const bullets = splitTextItems(workItem.bullets);
@@ -266,9 +387,9 @@ const buildGeneratedResumeContent = (
           endDate: String(workItem.endDate ?? ''),
           description: String(workItem.description ?? workItem.achievements ?? workItem.responsibilities ?? ''),
         };
-      });
+      }));
 
-  const projects = generatedProjects.length > 0
+  const projects = normalizeProjectList(generatedProjects.length > 0
     ? generatedProjects.map((item, index) => {
         const projectItem = toRecord(item);
         const bullets = splitTextItems(projectItem.bullets);
@@ -295,13 +416,13 @@ const buildGeneratedResumeContent = (
           description: String(projectItem.description ?? projectItem.results ?? projectItem.responsibilities ?? ''),
           link: String(projectItem.link ?? ''),
         };
-      });
+      }));
 
   const keywordGroup = generatedKeywords.length > 0
     ? generatedKeywords.join('、')
     : generatedSkillsSummary;
 
-  const skills = profileSkills.length > 0
+  const skills = normalizeSkillList(profileSkills.length > 0
     ? profileSkills.map((item, index) => {
         const skillItem = toRecord(item);
         return {
@@ -310,7 +431,7 @@ const buildGeneratedResumeContent = (
           items: String(skillItem.items ?? ''),
         };
       })
-    : [];
+    : []);
 
   if (generatedSkillsSummary) {
     skills.unshift({
@@ -720,30 +841,12 @@ export default function ResumeEditorPage() {
           // Work experience
           const workList = profileData.workExperience || [];
           if (Array.isArray(workList) && workList.length > 0) {
-            const mappedWork = workList.map((w: Record<string, unknown>) => ({
-              id: String(w.id || ''),
-              company: (w.company as string) || '',
-              position: (w.position as string) || '',
-              startDate: (w.startDate as string) || '',
-              endDate: (w.endDate as string) || '',
-              description: (w.achievements as string) || (w.responsibilities as string) || '',
-            }));
-            setProfileWork(mappedWork);
+            setProfileWork(normalizeWorkList(workList));
           }
           // Projects
           const projList = profileData.projects || [];
           if (Array.isArray(projList) && projList.length > 0) {
-            const mappedProj = projList.map((pr: Record<string, unknown>) => ({
-              id: String(pr.id || ''),
-              name: (pr.name as string) || '',
-              role: (pr.contributions as string) || '',
-              tech: (pr.techStack as string) || '',
-              startDate: (pr.startDate as string) || '',
-              endDate: (pr.endDate as string) || '',
-              description: (pr.results as string) || (pr.responsibilities as string) || '',
-              link: '',
-            }));
-            setProfileProjects(mappedProj);
+            setProfileProjects(normalizeProjectList(projList));
           }
           // Skills - group by category
           const skillList = profileData.skills || [];
@@ -753,28 +856,21 @@ export default function ResumeEditorPage() {
               const cat = (s.category as string) || '其他';
               const name = (s.name as string) || '';
               if (!grouped[cat]) grouped[cat] = [];
-              grouped[cat].push(name);
+              if (name && !grouped[cat].includes(name)) grouped[cat].push(name);
             });
             const mappedSkills = Object.entries(grouped).map(([cat, items], i) => ({
               id: `s${i + 1}`,
               category: cat,
               items: items.join(', '),
             }));
-            setProfileSkills(mappedSkills);
+            setProfileSkills(normalizeSkillList(mappedSkills));
           }
         }
         // Fetch resume list
         const resumeRes = await resumeApi.list();
         const resumeData = resumeRes.data?.data || resumeRes.data;
         if (Array.isArray(resumeData) && resumeData.length > 0) {
-          setResumeList(resumeData.map((r: Record<string, unknown>) => ({
-            id: String(r.id || ''),
-            name: (r.title as string) || '未命名简历',
-            templateType: normalizeTemplate((r.template as string) || 'default'),
-            languageType: normalizeLanguage((r.language as string) || 'zh'),
-            createdAt: r.createdAt ? new Date(r.createdAt as string).toISOString().split('T')[0] : '',
-            status: r.isActive ? '已完成' : '草稿',
-          })));
+          setResumeList(normalizeResumeList(resumeData));
           const first = resumeData[0];
           setSelectedResumeId(String(first.id || ''));
           setTemplate(normalizeTemplate((first.template as string) || 'default'));
@@ -819,26 +915,26 @@ export default function ResumeEditorPage() {
           };
           if (c.basicInfo) setBasicInfo(c.basicInfo);
           setEducation(normalizeEducationList(c.education || []));
-          if (c.work && c.work.length > 0) setWork(c.work);
-          if (c.projects && c.projects.length > 0) setProjects(c.projects);
-          if (c.skills && c.skills.length > 0) setSkills(c.skills);
+          setWork(normalizeWorkList(c.work || []));
+          setProjects(normalizeProjectList(c.projects || []));
+          setSkills(normalizeSkillList(c.skills || []));
           if (c.moduleOrder && c.moduleOrder.length > 0) setModuleOrder(c.moduleOrder);
         } else {
           // No saved content - use profile defaults
           setBasicInfo({ ...profileBasicInfo });
           setEducation(normalizeEducationList(profileEducation));
-          setWork(profileWork.map((item) => ({ ...item })));
-          setProjects(profileProjects.map((item) => ({ ...item })));
-          setSkills(profileSkills.map((item) => ({ ...item })));
+          setWork(normalizeWorkList(profileWork));
+          setProjects(normalizeProjectList(profileProjects));
+          setSkills(normalizeSkillList(profileSkills));
           setModuleOrder(['basic', 'education', 'work', 'projects', 'skills']);
         }
       } catch {
         // If fetching resume detail fails, fall back to profile data
         setBasicInfo({ ...profileBasicInfo });
         setEducation(normalizeEducationList(profileEducation));
-        setWork(profileWork.map((item) => ({ ...item })));
-        setProjects(profileProjects.map((item) => ({ ...item })));
-        setSkills(profileSkills.map((item) => ({ ...item })));
+        setWork(normalizeWorkList(profileWork));
+        setProjects(normalizeProjectList(profileProjects));
+        setSkills(normalizeSkillList(profileSkills));
         setModuleOrder(['basic', 'education', 'work', 'projects', 'skills']);
       }
     };
@@ -899,7 +995,7 @@ export default function ResumeEditorPage() {
             createdAt: data.createdAt ? new Date(data.createdAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
             status: '草稿',
           };
-          setResumeList((prev) => [newItem, ...prev]);
+          setResumeList((prev) => normalizeResumeList([newItem, ...prev]));
           setSelectedResumeId(String(data.id));
           setTemplate(rawTemplate);
           setLanguage(rawLanguage);
@@ -1039,15 +1135,15 @@ export default function ResumeEditorPage() {
           createdAt: created.createdAt ? new Date(created.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           status: '编辑中',
         };
-        setResumeList((prev) => [newItem, ...prev.filter((item) => item.id !== newItem.id)]);
+        setResumeList((prev) => normalizeResumeList([newItem, ...prev.filter((item) => item.id !== newItem.id)]));
         setSelectedResumeId(newItem.id);
         setTemplate(newItem.templateType);
         setLanguage(newItem.languageType);
         setBasicInfo({ ...content.basicInfo });
         setEducation(normalizeEducationList(content.education));
-        setWork(content.work.map((item) => ({ ...item })));
-        setProjects(content.projects.map((item) => ({ ...item })));
-        setSkills(content.skills.map((item) => ({ ...item })));
+        setWork(normalizeWorkList(content.work));
+        setProjects(normalizeProjectList(content.projects));
+        setSkills(normalizeSkillList(content.skills));
         setModuleOrder(content.moduleOrder);
         setExpandedModules(new Set<ModuleKey>(['basic']));
         setActiveMode('edit');
@@ -1135,7 +1231,13 @@ export default function ResumeEditorPage() {
     setSaving(true);
     try {
       const cleanEducation = normalizeEducationList(education);
+      const cleanWork = normalizeWorkList(work);
+      const cleanProjects = normalizeProjectList(projects);
+      const cleanSkills = normalizeSkillList(skills);
       setEducation(cleanEducation);
+      setWork(cleanWork);
+      setProjects(cleanProjects);
+      setSkills(cleanSkills);
       await resumeApi.update(selectedResumeId, {
         template,
         language,
@@ -1143,9 +1245,9 @@ export default function ResumeEditorPage() {
           moduleOrder,
           basicInfo,
           education: cleanEducation,
-          work,
-          projects,
-          skills,
+          work: cleanWork,
+          projects: cleanProjects,
+          skills: cleanSkills,
         },
       });
       // Auto-create version snapshot after save
@@ -2095,10 +2197,10 @@ export default function ResumeEditorPage() {
                   moduleOrder?: ModuleKey[];
                 };
                 if (c.basicInfo) setBasicInfo(c.basicInfo);
-                if (c.education && c.education.length > 0) setEducation(c.education);
-                if (c.work && c.work.length > 0) setWork(c.work);
-                if (c.projects && c.projects.length > 0) setProjects(c.projects);
-                if (c.skills && c.skills.length > 0) setSkills(c.skills);
+                setEducation(normalizeEducationList(c.education || []));
+                setWork(normalizeWorkList(c.work || []));
+                setProjects(normalizeProjectList(c.projects || []));
+                setSkills(normalizeSkillList(c.skills || []));
                 if (c.moduleOrder && c.moduleOrder.length > 0) setModuleOrder(c.moduleOrder);
               }
             }).catch(() => {});

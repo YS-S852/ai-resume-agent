@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Request, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Request, HttpCode, ParseIntPipe } from '@nestjs/common';
 import { ATSService } from './ats.service';
 import { AnalyzeATSDto, OptimizeResumeDto } from './dto/ats.dto';
 
@@ -29,7 +29,10 @@ export class ATSController {
   }
 
   @Get(':id')
-  async getReport(@Request() req: { user: { id: number } }, @Param('id') id: string) {
-    return this.atsService.getReport(+id, req.user.id);
+  async getReport(
+    @Request() req: { user: { id: number } },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.atsService.getReport(id, req.user.id);
   }
 }

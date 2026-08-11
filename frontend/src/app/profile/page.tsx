@@ -216,6 +216,8 @@ export default function ProfilePage() {
   };
   const [projects, setProjects] = useState<Project[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileRevision, setProfileRevision] = useState(0);
 
@@ -338,6 +340,35 @@ export default function ProfilePage() {
       setActiveTab(key);
       setTabAnimating(false);
     }, 150);
+  };
+
+  const handleDeleteEntry = async (
+    type: 'education' | 'work' | 'project' | 'skill',
+    id: number,
+  ) => {
+    const key = `${type}-${id}`;
+    setDeletingKey(key);
+    setDeleteError('');
+    try {
+      if (type === 'education') {
+        await profileApi.deleteEducation(id);
+        setEducation((items) => items.filter((item) => item.id !== id));
+      } else if (type === 'work') {
+        await profileApi.deleteWork(id);
+        setWork((items) => items.filter((item) => item.id !== id));
+      } else if (type === 'project') {
+        await profileApi.deleteProject(id);
+        setProjects((items) => items.filter((item) => item.id !== id));
+      } else {
+        await profileApi.deleteSkill(id);
+        setSkills((items) => items.filter((item) => item.id !== id));
+      }
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setDeleteError(error.response?.data?.message || '删除失败，请重试');
+    } finally {
+      setDeletingKey(null);
+    }
   };
 
   /* ==============================================================
@@ -662,6 +693,13 @@ export default function ProfilePage() {
               })}
             </div>
 
+            {deleteError && (
+              <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                <AlertCircle size={16} className="flex-shrink-0" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
             {/* Tab Content */}
             <div
               className={`transition-all duration-300 ${
@@ -711,8 +749,17 @@ export default function ProfilePage() {
                           <button className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/80 transition-colors">
                             <Pencil size={14} />
                           </button>
-                          <button className="p-2 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors">
-                            <Trash2 size={14} />
+                          <button
+                            onClick={() => handleDeleteEntry('education', edu.id)}
+                            disabled={deletingKey === `education-${edu.id}`}
+                            className="p-2 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="删除教育经历"
+                          >
+                            {deletingKey === `education-${edu.id}` ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
                           </button>
                         </div>
                       </div>
@@ -777,8 +824,17 @@ export default function ProfilePage() {
                           <button className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/80 transition-colors">
                             <Pencil size={14} />
                           </button>
-                          <button className="p-2 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors">
-                            <Trash2 size={14} />
+                          <button
+                            onClick={() => handleDeleteEntry('work', work.id)}
+                            disabled={deletingKey === `work-${work.id}`}
+                            className="p-2 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="删除工作经历"
+                          >
+                            {deletingKey === `work-${work.id}` ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
                           </button>
                         </div>
                       </div>
@@ -846,8 +902,17 @@ export default function ProfilePage() {
                           <button className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/80 transition-colors">
                             <Pencil size={14} />
                           </button>
-                          <button className="p-2 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors">
-                            <Trash2 size={14} />
+                          <button
+                            onClick={() => handleDeleteEntry('project', proj.id)}
+                            disabled={deletingKey === `project-${proj.id}`}
+                            className="p-2 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="删除项目经历"
+                          >
+                            {deletingKey === `project-${proj.id}` ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
                           </button>
                         </div>
                       </div>
@@ -960,8 +1025,17 @@ export default function ProfilePage() {
                                   </span>
                                 )}
                                 {/* Delete on hover */}
-                                <button className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-0.5 rounded-full hover:bg-red-500/20">
-                                  <X size={12} className="text-white/40 group-hover:text-red-400" />
+                                <button
+                                  onClick={() => handleDeleteEntry('skill', skill.id)}
+                                  disabled={deletingKey === `skill-${skill.id}`}
+                                  className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-0.5 rounded-full hover:bg-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                                  aria-label="删除技能"
+                                >
+                                  {deletingKey === `skill-${skill.id}` ? (
+                                    <Loader2 size={12} className="animate-spin text-white/40 group-hover:text-red-400" />
+                                  ) : (
+                                    <X size={12} className="text-white/40 group-hover:text-red-400" />
+                                  )}
                                 </button>
                               </div>
                             </div>

@@ -9,6 +9,12 @@ import {
 } from '@nestjs/common';
 import { SearchAgentService } from './search-agent.service';
 import { SearchService } from './search.service';
+import {
+  CompanySearchDto,
+  IndustryTrendsDto,
+  MarketSearchDto,
+  SalaryBenchmarkDto,
+} from './dto/search.dto';
 
 @Controller('search')
 export class SearchController {
@@ -21,8 +27,7 @@ export class SearchController {
   @HttpCode(HttpStatus.OK)
   async searchMarket(
     @Request() req: { user: { id: number } },
-    @Body()
-    body: { query: string; industry?: string; location?: string },
+    @Body() body: MarketSearchDto,
   ) {
     const results = await this.searchAgent.searchJobMarket(body.query, {
       industry: body.industry,
@@ -41,7 +46,7 @@ export class SearchController {
   @HttpCode(HttpStatus.OK)
   async researchCompany(
     @Request() req: { user: { id: number } },
-    @Body() body: { company: string },
+    @Body() body: CompanySearchDto,
   ) {
     const results = await this.searchAgent.researchCompany(body.company);
     await this.searchService.saveSearch(
@@ -57,7 +62,7 @@ export class SearchController {
   @HttpCode(HttpStatus.OK)
   async industryTrends(
     @Request() req: { user: { id: number } },
-    @Body() body: { industry: string },
+    @Body() body: IndustryTrendsDto,
   ) {
     const results = await this.searchAgent.industryTrends(body.industry);
     await this.searchService.saveSearch(
@@ -73,7 +78,7 @@ export class SearchController {
   @HttpCode(HttpStatus.OK)
   async salaryBenchmark(
     @Request() req: { user: { id: number } },
-    @Body() body: { position: string; location?: string },
+    @Body() body: SalaryBenchmarkDto,
   ) {
     const results = await this.searchAgent.salaryBenchmark(
       body.position,

@@ -14,6 +14,13 @@ import {
   BorderStyle,
 } from 'docx';
 
+const RESUME_FONT = {
+  ascii: 'Calibri',
+  hAnsi: 'Calibri',
+  eastAsia: 'Microsoft YaHei',
+  cs: 'Calibri',
+};
+
 @Injectable()
 export class ExportService {
   private readonly logger = new Logger(ExportService.name);
@@ -61,9 +68,10 @@ export class ExportService {
   }
 
   // ─── DOCX Generation using docx package ─────────────────────────────
-  async generateDocx(resumeData: any): Promise<Buffer> {
+  async generateDocx(resumeData: any, template?: string): Promise<Buffer> {
     const data = this.normalizeData(resumeData);
     const children: (Paragraph | Table)[] = [];
+    const accentColor = this.getDocxAccentColor(template);
 
     // ── Header: Name + Title ──
     children.push(
@@ -76,7 +84,7 @@ export class ExportService {
             text: data.basicInfo.name || 'Your Name',
             bold: true,
             size: 48, // 24pt
-            font: 'Helvetica',
+            font: RESUME_FONT,
           }),
         ],
       }),
@@ -92,7 +100,7 @@ export class ExportService {
               text: data.basicInfo.title,
               size: 28, // 14pt
               color: '444444',
-              font: 'Helvetica',
+              font: RESUME_FONT,
             }),
           ],
         }),
@@ -116,7 +124,7 @@ export class ExportService {
               text: contactParts.join('  |  '),
               size: 20, // 10pt
               color: '666666',
-              font: 'Helvetica',
+              font: RESUME_FONT,
             }),
           ],
         }),
@@ -125,7 +133,9 @@ export class ExportService {
 
     // ── Summary ──
     if (data.basicInfo.summary) {
-      children.push(this.sectionHeading('PROFESSIONAL SUMMARY'));
+      children.push(
+        this.sectionHeading('PROFESSIONAL SUMMARY', accentColor),
+      );
       children.push(
         new Paragraph({
           spacing: { after: 200 },
@@ -134,7 +144,7 @@ export class ExportService {
               text: data.basicInfo.summary,
               size: 21, // 10.5pt
               color: '333333',
-              font: 'Helvetica',
+              font: RESUME_FONT,
             }),
           ],
         }),
@@ -153,7 +163,7 @@ export class ExportService {
       switch (moduleKey) {
         case 'education':
           if (data.education?.length > 0) {
-            children.push(this.sectionHeading('EDUCATION'));
+            children.push(this.sectionHeading('EDUCATION', accentColor));
             for (const edu of data.education) {
               children.push(...this.educationEntry(edu));
             }
@@ -161,7 +171,9 @@ export class ExportService {
           break;
         case 'work':
           if (data.work?.length > 0) {
-            children.push(this.sectionHeading('WORK EXPERIENCE'));
+            children.push(
+              this.sectionHeading('WORK EXPERIENCE', accentColor),
+            );
             for (const w of data.work) {
               children.push(...this.workEntry(w));
             }
@@ -169,7 +181,7 @@ export class ExportService {
           break;
         case 'projects':
           if (data.projects?.length > 0) {
-            children.push(this.sectionHeading('PROJECTS'));
+            children.push(this.sectionHeading('PROJECTS', accentColor));
             for (const p of data.projects) {
               children.push(...this.projectEntry(p));
             }
@@ -177,7 +189,7 @@ export class ExportService {
           break;
         case 'skills':
           if (data.skills?.length > 0) {
-            children.push(this.sectionHeading('SKILLS'));
+            children.push(this.sectionHeading('SKILLS', accentColor));
             children.push(this.skillsTable(data.skills));
           }
           break;
@@ -189,7 +201,7 @@ export class ExportService {
         default: {
           document: {
             run: {
-              font: 'Helvetica',
+              font: RESUME_FONT,
               size: 22, // 11pt
             },
           },
@@ -218,13 +230,13 @@ export class ExportService {
   }
 
   // ─── Section heading helper ─────────────────────────────────────────
-  private sectionHeading(text: string): Paragraph {
+  private sectionHeading(text: string, accentColor: string): Paragraph {
     return new Paragraph({
       heading: HeadingLevel.HEADING_2,
       spacing: { before: 240, after: 120 },
       border: {
         bottom: {
-          color: '2563EB',
+          color: accentColor,
           space: 4,
           size: 2,
           style: BorderStyle.SINGLE,
@@ -235,11 +247,21 @@ export class ExportService {
           text: text,
           bold: true,
           size: 26, // 13pt
-          color: '1E3A5F',
-          font: 'Helvetica',
+          color: accentColor,
+          font: RESUME_FONT,
         }),
       ],
     });
+  }
+
+  private getDocxAccentColor(template?: string): string {
+    if (template === 'classic') {
+      return '1E3A5F';
+    }
+    if (template === 'modern') {
+      return '7C3AED';
+    }
+    return '2563EB';
   }
 
   // ─── Education entry ────────────────────────────────────────────────
@@ -257,14 +279,14 @@ export class ExportService {
             bold: true,
             size: 22,
             color: '1F2937',
-            font: 'Helvetica',
+            font: RESUME_FONT,
           }),
           dateRange
             ? new TextRun({
                 text: `    ${dateRange}`,
                 size: 20,
                 color: '6B7280',
-                font: 'Helvetica',
+                font: RESUME_FONT,
               })
             : new TextRun({ text: '' }),
         ],
@@ -282,7 +304,7 @@ export class ExportService {
               text: subTitle,
               size: 20,
               color: '4B5563',
-              font: 'Helvetica',
+              font: RESUME_FONT,
               italics: true,
             }),
             edu.gpa
@@ -290,7 +312,7 @@ export class ExportService {
                   text: `  GPA: ${edu.gpa}`,
                   size: 20,
                   color: '9CA3AF',
-                  font: 'Helvetica',
+                  font: RESUME_FONT,
                 })
               : new TextRun({ text: '' }),
           ],
@@ -307,7 +329,7 @@ export class ExportService {
               text: edu.description,
               size: 21,
               color: '4B5563',
-              font: 'Helvetica',
+              font: RESUME_FONT,
             }),
           ],
         }),
@@ -332,14 +354,14 @@ export class ExportService {
             bold: true,
             size: 22,
             color: '1F2937',
-            font: 'Helvetica',
+            font: RESUME_FONT,
           }),
           dateRange
             ? new TextRun({
                 text: `    ${dateRange}`,
                 size: 20,
                 color: '6B7280',
-                font: 'Helvetica',
+                font: RESUME_FONT,
               })
             : new TextRun({ text: '' }),
         ],
@@ -355,7 +377,7 @@ export class ExportService {
             text: w.position || '',
             size: 20,
             color: '2563EB',
-            font: 'Helvetica',
+            font: RESUME_FONT,
             italics: true,
           }),
         ],
@@ -382,7 +404,7 @@ export class ExportService {
                 text: line,
                 size: 21,
                 color: '374151',
-                font: 'Helvetica',
+                font: RESUME_FONT,
               }),
             ],
           }),
@@ -415,14 +437,14 @@ export class ExportService {
             bold: true,
             size: 22,
             color: '1F2937',
-            font: 'Helvetica',
+            font: RESUME_FONT,
           }),
           dateRange
             ? new TextRun({
                 text: `    ${dateRange}`,
                 size: 20,
                 color: '6B7280',
-                font: 'Helvetica',
+                font: RESUME_FONT,
               })
             : new TextRun({ text: '' }),
         ],
@@ -441,7 +463,7 @@ export class ExportService {
               text: subLine,
               size: 20,
               color: '6B7280',
-              font: 'Helvetica',
+              font: RESUME_FONT,
               italics: true,
             }),
           ],
@@ -468,7 +490,7 @@ export class ExportService {
                 text: line,
                 size: 21,
                 color: '374151',
-                font: 'Helvetica',
+                font: RESUME_FONT,
               }),
             ],
           }),
@@ -485,7 +507,7 @@ export class ExportService {
               text: p.link,
               size: 20,
               color: '2563EB',
-              font: 'Helvetica',
+              font: RESUME_FONT,
             }),
           ],
         }),
@@ -520,7 +542,7 @@ export class ExportService {
                       bold: true,
                       size: 21,
                       color: '1E3A5F',
-                      font: 'Helvetica',
+                      font: RESUME_FONT,
                     }),
                   ],
                 }),
@@ -536,7 +558,7 @@ export class ExportService {
                       text: s.items || '',
                       size: 21,
                       color: '374151',
-                      font: 'Helvetica',
+                      font: RESUME_FONT,
                     }),
                   ],
                 }),
@@ -553,7 +575,7 @@ export class ExportService {
   }
 
   // ─── HTML Resume Generation ─────────────────────────────────────────
-  generateResumeHtml(data: any, template: string): string {
+  generateResumeHtml(data: any, template?: string): string {
     const d = this.normalizeData(data);
     const t = template || 'minimal';
 
@@ -735,12 +757,10 @@ export class ExportService {
   // ─── Template CSS ───────────────────────────────────────────────────
   private getTemplateCss(template: string): string {
     const baseCss = `
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
-
       * { margin: 0; padding: 0; box-sizing: border-box; }
 
       body {
-        font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
         font-size: 10.5pt;
         color: #1e293b;
         line-height: 1.55;

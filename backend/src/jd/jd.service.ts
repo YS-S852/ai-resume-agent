@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
 
@@ -23,15 +23,19 @@ export class JDService {
   }
 
   async findOne(id: number, userId: number) {
-    return this.prisma.jobDescription.findFirst({
+    const jd = await this.prisma.jobDescription.findFirst({
       where: { id, userId },
       include: { atsReports: true },
     });
+    if (!jd) {
+      throw new NotFoundException(`JD #${id} 不存在`);
+    }
+    return jd;
   }
 
   async analyzeAndSave(id: number, userId: number) {
     const jd = await this.prisma.jobDescription.findFirst({ where: { id, userId } });
-    if (!jd) throw new Error('JD not found');
+    if (!jd) throw new NotFoundException(`JD #${id} 不存在`);
 
     const result = await this.aiService.analyzeJD(jd.rawContent);
     return this.prisma.jobDescription.update({
@@ -42,7 +46,7 @@ export class JDService {
 
   async getMatchScore(jdId: number, userId: number) {
     const jd = await this.prisma.jobDescription.findFirst({ where: { id: jdId, userId } });
-    if (!jd) throw new Error('JD not found');
+    if (!jd) throw new NotFoundException(`JD #${jdId} 不存在`);
 
     const profile = await this.prisma.profile.findUnique({ where: { userId } });
     const skills = await this.prisma.skill.findMany({ where: { userId } });

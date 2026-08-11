@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Request, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Request, HttpCode, ParseIntPipe } from '@nestjs/common';
 import { JobsService } from './jobs.service';
-import { Public } from '../auth/public.decorator';
+import { CreateJobDto, UpdateJobDto } from './dto/jobs.dto';
 
 @Controller('jobs')
 export class JobsController {
@@ -8,34 +8,34 @@ export class JobsController {
 
   @Post()
   @HttpCode(201)
-  async create(@Request() req: { user?: { id: number } }, @Body() body: {
-    company: string; position: string; salary?: string;
-    location?: string; source?: string; status?: string; notes?: string; jdId?: number;
-  }) {
-    return this.jobsService.create(req.user?.id ?? 1, body);
+  async create(@Request() req: { user: { id: number } }, @Body() body: CreateJobDto) {
+    return this.jobsService.create(req.user.id, body);
   }
 
   @Get()
-  @Public()
-  async findAll(@Request() req: { user?: { id: number } }) {
-    if (!req.user) return [];
+  async findAll(@Request() req: { user: { id: number } }) {
     return this.jobsService.findAll(req.user.id);
   }
 
   @Get('stats')
-  @Public()
-  async getStats(@Request() req: { user?: { id: number } }) {
-    if (!req.user) return { total: 0, wishlist: 0, applied: 0, interview: 0, offer: 0, rejected: 0 };
+  async getStats(@Request() req: { user: { id: number } }) {
     return this.jobsService.getStats(req.user.id);
   }
 
   @Put(':id')
-  async update(@Request() req: { user?: { id: number } }, @Param('id') id: string, @Body() body: Record<string, any>) {
-    return this.jobsService.update(+id, req.user?.id ?? 1, body);
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: { id: number } },
+    @Body() body: UpdateJobDto,
+  ) {
+    return this.jobsService.update(id, req.user.id, body);
   }
 
   @Delete(':id')
-  async remove(@Request() req: { user?: { id: number } }, @Param('id') id: string) {
-    return this.jobsService.remove(+id, req.user?.id ?? 1);
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: { id: number } },
+  ) {
+    return this.jobsService.remove(id, req.user.id);
   }
 }

@@ -128,12 +128,12 @@ export class CareerVaultService {
 
       if (this.qdrant.isReady() && !this.fallbackMode) {
         try {
-          await this.qdrant.upsert(docId, vector, {
+          await this.qdrant.upsert(`${userId}:${docId}`, vector, {
             docId,
             userId,
             content: content.substring(0, 2000),
           });
-          this.logger.log(`Indexed document ${docId} in Qdrant`);
+          this.logger.log(`Indexed document ${docId} for user ${userId} in Qdrant`);
         } catch (error) {
           this.logger.error(`Qdrant upsert failed: ${error.message}, using fallback`);
           this.fallbackMode = true;
@@ -156,20 +156,27 @@ export class CareerVaultService {
   /**
    * Remove a document from the vector index.
    */
-  async deleteIndex(docId: number): Promise<void> {
+  async deleteIndex(docId: number, userId: number): Promise<void> {
     try {
       if (this.qdrant.isReady() && !this.fallbackMode) {
-        await this.qdrant.delete(docId);
+        await this.qdrant.delete(`${userId}:${docId}`);
+        // Remove legacy points that were created with bare numeric doc ids.
+        await this.qdrant.deleteByFilter({
+          must: [
+            { key: 'docId', match: { value: docId } },
+            { key: 'userId', match: { value: userId } },
+          ],
+        });
       }
     } catch (error) {
-      this.logger.warn(`Qdrant delete failed for doc ${docId}: ${error.message}`);
+      this.logger.warn(`Qdrant delete failed for doc ${docId} (user ${userId}): ${error.message}`);
     }
 
     // Always clean up fallback
     for (const [key, entry] of this.memoryFallback) {
-      if (entry.docId === docId) {
+      if (entry.docId === docId && entry.userId === userId) {
         this.memoryFallback.delete(key);
-        this.logger.log(`Removed fallback index for document ${docId}`);
+        this.logger.log(`Removed fallback index for document ${docId} (user ${userId})`);
         return;
       }
     }

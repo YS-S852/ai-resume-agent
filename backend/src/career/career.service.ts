@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 const VALID_TYPES = ['knowledge', 'case', 'template', 'experience', 'industry', 'guide'];
@@ -64,7 +64,7 @@ export class CareerService {
    */
   async create(userId: number, dto: CreateCareerDocumentDto) {
     if (!VALID_TYPES.includes(dto.type)) {
-      throw new Error(`Invalid type: ${dto.type}. Must be one of: ${VALID_TYPES.join(', ')}`);
+      throw new BadRequestException(`Invalid type: ${dto.type}. Must be one of: ${VALID_TYPES.join(', ')}`);
     }
     return this.prisma.careerDocument.create({
       data: {
@@ -86,7 +86,7 @@ export class CareerService {
     if (dto.title !== undefined) data.title = dto.title;
     if (dto.type !== undefined) {
       if (!VALID_TYPES.includes(dto.type)) {
-        throw new Error(`Invalid type: ${dto.type}. Must be one of: ${VALID_TYPES.join(', ')}`);
+        throw new BadRequestException(`Invalid type: ${dto.type}. Must be one of: ${VALID_TYPES.join(', ')}`);
       }
       data.type = dto.type;
     }

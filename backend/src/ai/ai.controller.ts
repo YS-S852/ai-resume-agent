@@ -2,11 +2,19 @@ import {
   Controller,
   Post,
   Body,
-  UseGuards,
   Request,
   HttpCode,
 } from '@nestjs/common';
-import { AiService, ChatMessage } from './ai.service';
+import { AiService } from './ai.service';
+import {
+  AnalyzeJdDto,
+  AtsScoreDto,
+  ExtractProfileDto,
+  GenerateResumeDto,
+  InterviewChatDto,
+  InterviewQuestionsDto,
+  PolishResumeDto,
+} from './dto/ai.dto';
 
 @Controller('ai')
 export class AiController {
@@ -19,7 +27,7 @@ export class AiController {
   @Post('analyze-jd')
   @HttpCode(200)
   async analyzeJD(
-    @Body() body: { rawJD: string },
+    @Body() body: AnalyzeJdDto,
   ) {
     return this.aiService.analyzeJD(body.rawJD);
   }
@@ -31,7 +39,7 @@ export class AiController {
   @Post('ats-score')
   @HttpCode(200)
   async scoreATS(
-    @Body() body: { resumeContent: string; jdContent: string },
+    @Body() body: AtsScoreDto,
   ) {
     return this.aiService.scoreATS(body.resumeContent, body.jdContent);
   }
@@ -43,7 +51,7 @@ export class AiController {
   @Post('interview-questions')
   @HttpCode(200)
   async generateQuestions(
-    @Body() body: { jdContent: string; resumeContent: string; count?: number },
+    @Body() body: InterviewQuestionsDto,
   ) {
     return this.aiService.generateInterviewQuestions(
       body.jdContent,
@@ -59,7 +67,7 @@ export class AiController {
   @Post('interview-chat')
   @HttpCode(200)
   async interviewChat(
-    @Body() body: { history: ChatMessage[]; jdContent: string },
+    @Body() body: InterviewChatDto,
   ) {
     const reply = await this.aiService.mockInterviewChat(body.history, body.jdContent);
     return { reply };
@@ -72,7 +80,7 @@ export class AiController {
   @Post('generate-resume')
   @HttpCode(200)
   async generateResume(
-    @Body() body: { profileData: Record<string, unknown>; jdContent?: string },
+    @Body() body: GenerateResumeDto,
   ) {
     return this.aiService.generateResumeContent(body.profileData, body.jdContent);
   }
@@ -84,7 +92,7 @@ export class AiController {
   @Post('polish-resume')
   @HttpCode(200)
   async polishResume(
-    @Body() body: { text: string; style?: 'professional' | 'creative' | 'technical' },
+    @Body() body: PolishResumeDto,
   ) {
     const result = await this.aiService.polishResumeContent(body.text, body.style ?? 'professional');
     return { polished: result };
@@ -97,7 +105,7 @@ export class AiController {
   @Post('extract-profile')
   @HttpCode(200)
   async extractProfile(
-    @Body() body: { rawInput: string },
+    @Body() body: ExtractProfileDto,
   ) {
     return this.aiService.extractProfileInfo(body.rawInput);
   }
