@@ -95,11 +95,11 @@ export class SearchAgentService {
   }
 
   /**
-   * Fetch search results from DuckDuckGo (free, no API key needed)
+   * Fetch search results from Bing China (free, no API key needed)
    */
   private async fetchSearchResults(query: string): Promise<string[]> {
     try {
-      const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+      const url = `https://cn.bing.com/search?q=${encodeURIComponent(query)}&mkt=zh-CN`;
       const response = await fetch(url, {
         headers: {
           'User-Agent':
@@ -113,21 +113,18 @@ export class SearchAgentService {
       const $ = cheerio.load(html);
       const snippets: string[] = [];
 
-      // Try DuckDuckGo result snippets first
-      $('.result__snippet').each((_i, el) => {
+      $('.b_algo').each((_i, el) => {
         if (snippets.length >= 10) return false;
-        const text = $(el).text().trim();
-        if (text) snippets.push(text);
+        const title = $(el).find('h2').text().trim();
+        const link = $(el).find('h2 a').attr('href') || '';
+        const snippet = $(el)
+          .find('.b_caption p, .b_lineclamp2, .b_lineclamp3, .b_lineclamp4, .b_lineclamp5, .b_caption')
+          .first()
+          .text()
+          .trim();
+        const text = [title, link, snippet].filter(Boolean).join('\n');
+        if (text) snippets.push(text.substring(0, 1000));
       });
-
-      // Also try result bodies as fallback
-      if (snippets.length === 0) {
-        $('.result__body').each((_i, el) => {
-          if (snippets.length >= 10) return false;
-          const text = $(el).text().trim();
-          if (text) snippets.push(text);
-        });
-      }
 
       // Fallback: extract any readable text from the page
       if (snippets.length === 0) {
