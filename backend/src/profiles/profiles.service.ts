@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
 import {
@@ -29,6 +29,10 @@ export class ProfilesService {
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
   ) {}
+
+  private clean(value: string | undefined) {
+    return value?.trim() ?? '';
+  }
 
   async importFromText(userId: number, rawInput: string) {
     const extracted = (await this.ai.extractProfileInfo(rawInput)) as ExtractedProfile;
@@ -236,10 +240,18 @@ export class ProfilesService {
   }
 
   async createEducation(userId: number, dto: CreateEducationDto) {
+    const duplicate = await this.prisma.education.findFirst({
+      where: { userId, school: this.clean(dto.school), major: this.clean(dto.major), degree: this.clean(dto.degree) },
+    });
+    if (duplicate) throw new ConflictException('相同学校、专业和学历的教育经历已存在');
     return this.prisma.education.create({
       data: {
         userId,
         ...dto,
+        school: this.clean(dto.school),
+        major: this.clean(dto.major),
+        degree: this.clean(dto.degree),
+        startDate: this.clean(dto.startDate),
       },
     });
   }
@@ -252,6 +264,17 @@ export class ProfilesService {
     if (!education) {
       throw new NotFoundException(`教育记录 #${id} 不存在`);
     }
+
+    const duplicate = await this.prisma.education.findFirst({
+      where: {
+        userId,
+        id: { not: id },
+        school: this.clean(dto.school ?? education.school),
+        major: this.clean(dto.major ?? education.major),
+        degree: this.clean(dto.degree ?? education.degree),
+      },
+    });
+    if (duplicate) throw new ConflictException('相同学校、专业和学历的教育经历已存在');
 
     return this.prisma.education.update({
       where: { id },
@@ -283,10 +306,17 @@ export class ProfilesService {
   }
 
   async createWorkExperience(userId: number, dto: CreateWorkExperienceDto) {
+    const duplicate = await this.prisma.workExperience.findFirst({
+      where: { userId, company: this.clean(dto.company), position: this.clean(dto.position) },
+    });
+    if (duplicate) throw new ConflictException('相同公司和职位的工作经历已存在');
     return this.prisma.workExperience.create({
       data: {
         userId,
         ...dto,
+        company: this.clean(dto.company),
+        position: this.clean(dto.position),
+        startDate: this.clean(dto.startDate),
       },
     });
   }
@@ -303,6 +333,16 @@ export class ProfilesService {
     if (!experience) {
       throw new NotFoundException(`工作经历 #${id} 不存在`);
     }
+
+    const duplicate = await this.prisma.workExperience.findFirst({
+      where: {
+        userId,
+        id: { not: id },
+        company: this.clean(dto.company ?? experience.company),
+        position: this.clean(dto.position ?? experience.position),
+      },
+    });
+    if (duplicate) throw new ConflictException('相同公司和职位的工作经历已存在');
 
     return this.prisma.workExperience.update({
       where: { id },
@@ -334,10 +374,15 @@ export class ProfilesService {
   }
 
   async createProject(userId: number, dto: CreateProjectDto) {
+    const duplicate = await this.prisma.project.findFirst({
+      where: { userId, name: this.clean(dto.name) },
+    });
+    if (duplicate) throw new ConflictException('相同名称的项目经历已存在');
     return this.prisma.project.create({
       data: {
         userId,
         ...dto,
+        name: this.clean(dto.name),
       },
     });
   }
@@ -350,6 +395,11 @@ export class ProfilesService {
     if (!project) {
       throw new NotFoundException(`项目 #${id} 不存在`);
     }
+
+    const duplicate = await this.prisma.project.findFirst({
+      where: { userId, id: { not: id }, name: this.clean(dto.name ?? project.name) },
+    });
+    if (duplicate) throw new ConflictException('相同名称的项目经历已存在');
 
     return this.prisma.project.update({
       where: { id },
@@ -381,10 +431,16 @@ export class ProfilesService {
   }
 
   async createSkill(userId: number, dto: CreateSkillDto) {
+    const duplicate = await this.prisma.skill.findFirst({
+      where: { userId, category: this.clean(dto.category), name: this.clean(dto.name) },
+    });
+    if (duplicate) throw new ConflictException('相同分类下的技能已存在');
     return this.prisma.skill.create({
       data: {
         userId,
         ...dto,
+        category: this.clean(dto.category),
+        name: this.clean(dto.name),
       },
     });
   }
@@ -397,6 +453,16 @@ export class ProfilesService {
     if (!skill) {
       throw new NotFoundException(`技能 #${id} 不存在`);
     }
+
+    const duplicate = await this.prisma.skill.findFirst({
+      where: {
+        userId,
+        id: { not: id },
+        category: this.clean(dto.category ?? skill.category),
+        name: this.clean(dto.name ?? skill.name),
+      },
+    });
+    if (duplicate) throw new ConflictException('相同分类下的技能已存在');
 
     return this.prisma.skill.update({
       where: { id },

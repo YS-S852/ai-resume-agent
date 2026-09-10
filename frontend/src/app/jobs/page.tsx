@@ -58,6 +58,9 @@ interface JobApplication {
   source?: string;
   status: JobStatus;
   notes?: string;
+  jobUrl?: string;
+  appliedDate?: string;
+  interviewDate?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -240,6 +243,9 @@ const EMPTY_FORM = {
   source: '',
   status: 'wishlist' as JobStatus,
   notes: '',
+  jobUrl: '',
+  appliedDate: '',
+  interviewDate: '',
 };
 
 // ---------------------------------------------------------------------------
@@ -327,6 +333,9 @@ export default function JobsPage() {
           source: form.source || undefined,
           status: form.status,
           notes: form.notes || undefined,
+          jobUrl: form.jobUrl || undefined,
+          appliedDate: form.appliedDate || undefined,
+          interviewDate: form.interviewDate || undefined,
         });
       } else {
         await jobApi.create({
@@ -337,6 +346,9 @@ export default function JobsPage() {
           source: form.source || undefined,
           status: form.status,
           notes: form.notes || undefined,
+          jobUrl: form.jobUrl || undefined,
+          appliedDate: form.appliedDate || undefined,
+          interviewDate: form.interviewDate || undefined,
         });
       }
       setShowAddModal(false);
@@ -385,6 +397,9 @@ export default function JobsPage() {
       source: job.source || '',
       status: job.status,
       notes: job.notes || '',
+      jobUrl: job.jobUrl || '',
+      appliedDate: job.appliedDate?.slice(0, 10) || '',
+      interviewDate: job.interviewDate?.slice(0, 10) || '',
     });
     setShowAddModal(true);
   };
@@ -1080,6 +1095,41 @@ export default function JobsPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-white/50 text-xs mb-1.5 ml-1">招聘链接</label>
+                <div className="relative">
+                  <ExternalLink size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={form.jobUrl}
+                    onChange={(e) => setForm({ ...form, jobUrl: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/30 outline-none focus:border-purple-500/40 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-white/50 text-xs mb-1.5 ml-1">投递日期</label>
+                  <input
+                    type="date"
+                    value={form.appliedDate}
+                    onChange={(e) => setForm({ ...form, appliedDate: e.target.value })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-purple-500/40 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white/50 text-xs mb-1.5 ml-1">面试日期</label>
+                  <input
+                    type="date"
+                    value={form.interviewDate}
+                    onChange={(e) => setForm({ ...form, interviewDate: e.target.value })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-purple-500/40 transition-colors"
+                  />
+                </div>
+              </div>
+
               {/* Notes */}
               <div>
                 <label className="block text-white/50 text-xs mb-1.5 ml-1">备注</label>
@@ -1245,8 +1295,26 @@ function JobCard({ job, onNext, onPrev, onStatusChange, onDelete, onEdit }: JobC
       {/* Date */}
       <div className="flex items-center gap-1 text-[11px] text-white/30 mb-2">
         <Calendar size={10} />
-        <span>{formatDate(job.createdAt)}</span>
+        <span>
+          {job.interviewDate
+            ? `面试 ${formatDate(job.interviewDate)}`
+            : job.appliedDate
+              ? `投递 ${formatDate(job.appliedDate)}`
+              : `创建 ${formatDate(job.createdAt)}`}
+        </span>
       </div>
+
+      {expanded && job.jobUrl && (
+        <a
+          href={job.jobUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => event.stopPropagation()}
+          className="mb-2 inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300"
+        >
+          <ExternalLink size={11} />查看招聘页面
+        </a>
+      )}
 
       {/* Notes Preview */}
       {job.notes && !expanded && (

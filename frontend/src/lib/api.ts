@@ -182,7 +182,7 @@ export const profileApi = {
 export const jobApi = {
   list: () => api.get('/jobs'),
   stats: () => api.get('/jobs/stats'),
-  create: (data: { company: string; position: string; salary?: string; location?: string; source?: string; status?: string; notes?: string }) =>
+  create: (data: { company: string; position: string; salary?: string; location?: string; source?: string; status?: string; notes?: string; jobUrl?: string; appliedDate?: string; interviewDate?: string; jdId?: number; resumeId?: number }) =>
     api.post('/jobs', data),
   update: (id: number, data: Record<string, unknown>) => api.put(`/jobs/${id}`, data),
   delete: (id: number) => api.delete(`/jobs/${id}`),

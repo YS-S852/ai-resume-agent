@@ -25,7 +25,7 @@ export class CareerService {
    * List all career documents for a user, optionally filtered by type.
    */
   async findAll(userId: number, type?: string) {
-    const where: any = { userId };
+    const where: any = { userId, type: { not: 'job_application' } };
     if (type && VALID_TYPES.includes(type)) {
       where.type = type;
     }
@@ -51,7 +51,7 @@ export class CareerService {
    */
   async findOne(id: number, userId: number) {
     const doc = await this.prisma.careerDocument.findFirst({
-      where: { id, userId },
+      where: { id, userId, type: { not: 'job_application' } },
     });
     if (!doc) {
       throw new NotFoundException(`CareerDocument with id ${id} not found`);
@@ -116,6 +116,7 @@ export class CareerService {
     return this.prisma.careerDocument.findMany({
       where: {
         userId,
+        type: { not: 'job_application' },
         OR: [
           { title: { contains: query } },
           { content: { contains: query } },

@@ -6,26 +6,71 @@ export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getStats(userId: number) {
-    const [resumeCount, jobApplicationCount, atsReports, recentActivitiesRaw] =
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5, 1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+
+    const [resumeCount, jobGroups, atsAggregate, interviewAggregate, profile, applicationDates, recentActivitiesRaw] =
       await Promise.all([
         this.prisma.resume.count({ where: { userId } }),
-        this.prisma.careerDocument.count({
-          where: { userId, type: 'job_application' },
-        }),
-        this.prisma.atsReport.findMany({
+        this.prisma.jobApplication.groupBy({
+          by: ['status'],
           where: { userId },
-          select: { overallScore: true },
+          _count: { _all: true },
+        }),
+        this.prisma.atsReport.aggregate({
+          where: { userId },
+          _avg: { overallScore: true },
+        }),
+        this.prisma.interviewRecord.aggregate({
+          where: { userId },
+          _count: { _all: true },
+          _avg: { score: true },
+          _max: { score: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            profile: { select: { fullName: true, phone: true, city: true, jobIntention: true, summary: true } },
+            education: { take: 1, select: { id: true } },
+            workExperience: { take: 1, select: { id: true } },
+            projects: { take: 1, select: { id: true } },
+            skills: { take: 1, select: { id: true } },
+          },
+        }),
+        this.prisma.jobApplication.findMany({
+          where: { userId, createdAt: { gte: sixMonthsAgo } },
+          select: { createdAt: true },
         }),
         this.getRecentActivities(userId),
       ]);
 
-    const atsAvgScore =
-      atsReports.length > 0
-        ? Math.round(
-            atsReports.reduce((sum, r) => sum + r.overallScore, 0) /
-              atsReports.length,
-          )
-        : 0;
+    const jobFunnel = { wishlist: 0, applied: 0, interview: 0, offer: 0, rejected: 0 };
+    for (const group of jobGroups) {
+      const status = group.status as keyof typeof jobFunnel;
+      if (status in jobFunnel) jobFunnel[status] = group._count._all;
+      else jobFunnel.wishlist += group._count._all;
+    }
+    const jobApplicationCount = Object.values(jobFunnel).reduce((sum, count) => sum + count, 0);
+
+    const basicFields = profile?.profile
+      ? [profile.profile.fullName, profile.profile.phone, profile.profile.city, profile.profile.jobIntention, profile.profile.summary]
+      : [];
+    const profileCompletion = Math.min(100,
+      basicFields.filter(Boolean).length * 8
+      + (profile?.education.length ? 15 : 0)
+      + (profile?.workExperience.length ? 20 : 0)
+      + (profile?.projects.length ? 15 : 0)
+      + (profile?.skills.length ? 10 : 0),
+    );
+
+    const applicationTrend = Array.from({ length: 6 }, (_, index) => {
+      const date = new Date(sixMonthsAgo.getFullYear(), sixMonthsAgo.getMonth() + index, 1);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      return { month: key, count: applicationDates.filter((item) => item.createdAt.toISOString().startsWith(key)).length };
+    });
+
+    const atsAvgScore = Math.round(atsAggregate._avg.overallScore || 0);
 
     // Determine lastActive from the most recent activity
     const lastActive =
@@ -42,7 +87,15 @@ export class DashboardService {
     return {
       resumeCount,
       jobApplicationCount,
+      jobFunnel,
+      applicationTrend,
+      profileCompletion,
       atsAvgScore,
+      interviewStats: {
+        total: interviewAggregate._count._all,
+        averageScore: Math.round(interviewAggregate._avg.score || 0),
+        highestScore: interviewAggregate._max.score || 0,
+      },
       lastActive,
       recentActivities,
     };
@@ -77,8 +130,8 @@ export class DashboardService {
         orderBy: { createdAt: 'desc' },
         take: 5,
       }),
-      this.prisma.careerDocument.findMany({
-        where: { userId, type: 'job_application' },
+      this.prisma.jobApplication.findMany({
+        where: { userId },
         orderBy: { createdAt: 'desc' },
         take: 5,
       }),
@@ -120,7 +173,7 @@ export class DashboardService {
 
     applications.forEach((application) => {
       activities.push({
-        action: `新增投递 - ${application.title}`,
+        action: `新增投递 - ${application.company} ${application.position}`,
         type: 'job',
         createdAt: application.createdAt,
       });

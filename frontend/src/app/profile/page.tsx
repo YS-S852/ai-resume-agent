@@ -87,6 +87,8 @@ interface Education {
   period: string;
   gpa: string;
   honors: string;
+  startDate: string;
+  endDate: string;
 }
 
 interface Work {
@@ -97,6 +99,8 @@ interface Work {
   period: string;
   responsibilities: string;
   achievements: string;
+  startDate: string;
+  endDate: string;
 }
 
 interface Project {
@@ -108,6 +112,8 @@ interface Project {
   responsibilities: string;
   contributions: string;
   outcomes: string;
+  startDate: string;
+  endDate: string;
 }
 
 interface Skill {
@@ -117,6 +123,37 @@ interface Skill {
   level?: string;
   color: string;
 }
+
+type EntryType = 'education' | 'work' | 'project' | 'skill';
+
+interface EntryForm {
+  school: string;
+  major: string;
+  degree: string;
+  company: string;
+  industry: string;
+  position: string;
+  name: string;
+  category: Skill['category'];
+  level: string;
+  startDate: string;
+  endDate: string;
+  gpa: string;
+  honors: string;
+  responsibilities: string;
+  achievements: string;
+  techStack: string;
+  background: string;
+  contributions: string;
+  results: string;
+}
+
+const emptyEntryForm: EntryForm = {
+  school: '', major: '', degree: '', company: '', industry: '', position: '',
+  name: '', category: 'tech', level: '', startDate: '', endDate: '', gpa: '',
+  honors: '', responsibilities: '', achievements: '', techStack: '', background: '',
+  contributions: '', results: '',
+};
 
 const skillColorPool = [
   'from-blue-500 to-cyan-400',
@@ -220,6 +257,12 @@ export default function ProfilePage() {
   const [deleteError, setDeleteError] = useState('');
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileRevision, setProfileRevision] = useState(0);
+  const [entryModalOpen, setEntryModalOpen] = useState(false);
+  const [entryType, setEntryType] = useState<EntryType>('education');
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+  const [entryForm, setEntryForm] = useState<EntryForm>(emptyEntryForm);
+  const [entrySaving, setEntrySaving] = useState(false);
+  const [entryError, setEntryError] = useState('');
 
   /* ---- AI import state ---- */
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -260,6 +303,8 @@ export default function ProfilePage() {
               period: `${e.startDate || ''} - ${e.endDate || '至今'}`,
               gpa: e.gpa || '',
               honors: e.honors || '',
+              startDate: e.startDate || '',
+              endDate: e.endDate || '',
             })),
           );
           setWork(
@@ -271,6 +316,8 @@ export default function ProfilePage() {
               period: `${w.startDate || ''} - ${w.endDate || '至今'}`,
               responsibilities: w.responsibilities || '',
               achievements: w.achievements || '',
+              startDate: w.startDate || '',
+              endDate: w.endDate || '',
             })),
           );
           setProjects(
@@ -283,6 +330,8 @@ export default function ProfilePage() {
               responsibilities: p.responsibilities || '',
               contributions: p.contributions || '',
               outcomes: p.results || '',
+              startDate: p.startDate || '',
+              endDate: p.endDate || '',
             })),
           );
           setSkills(
@@ -368,6 +417,85 @@ export default function ProfilePage() {
       setDeleteError(error.response?.data?.message || '删除失败，请重试');
     } finally {
       setDeletingKey(null);
+    }
+  };
+
+  const openEntryModal = (type: EntryType, item?: Education | Work | Project | Skill) => {
+    setEntryType(type);
+    setEditingEntryId(item?.id ?? null);
+    setEntryError('');
+    const form = { ...emptyEntryForm };
+    if (type === 'education' && item) {
+      const value = item as Education;
+      Object.assign(form, value);
+    } else if (type === 'work' && item) {
+      const value = item as Work;
+      Object.assign(form, value, { position: value.title });
+    } else if (type === 'project' && item) {
+      const value = item as Project;
+      Object.assign(form, value, { techStack: value.techStack.join(', '), results: value.outcomes });
+    } else if (type === 'skill' && item) {
+      Object.assign(form, item as Skill);
+    }
+    setEntryForm(form);
+    setEntryModalOpen(true);
+  };
+
+  const updateEntryField = <K extends keyof EntryForm>(key: K, value: EntryForm[K]) => {
+    setEntryForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const saveEntry = async () => {
+    const requiredMissing =
+      (entryType === 'education' && (!entryForm.school.trim() || !entryForm.major.trim() || !entryForm.degree.trim() || !entryForm.startDate.trim())) ||
+      (entryType === 'work' && (!entryForm.company.trim() || !entryForm.position.trim() || !entryForm.startDate.trim())) ||
+      (entryType === 'project' && !entryForm.name.trim()) ||
+      (entryType === 'skill' && !entryForm.name.trim());
+    if (requiredMissing) {
+      setEntryError('请填写所有必填项');
+      return;
+    }
+
+    setEntrySaving(true);
+    setEntryError('');
+    try {
+      let payload: Record<string, unknown>;
+      if (entryType === 'education') {
+        payload = {
+          school: entryForm.school.trim(), major: entryForm.major.trim(), degree: entryForm.degree.trim(),
+          startDate: entryForm.startDate.trim(), endDate: entryForm.endDate.trim() || undefined,
+          gpa: entryForm.gpa.trim() || undefined, honors: entryForm.honors.trim() || undefined,
+        };
+        await (editingEntryId ? profileApi.updateEducation(editingEntryId, payload) : profileApi.createEducation(payload));
+      } else if (entryType === 'work') {
+        payload = {
+          company: entryForm.company.trim(), industry: entryForm.industry.trim() || undefined,
+          position: entryForm.position.trim(), startDate: entryForm.startDate.trim(),
+          endDate: entryForm.endDate.trim() || undefined,
+          responsibilities: entryForm.responsibilities.trim() || undefined,
+          achievements: entryForm.achievements.trim() || undefined,
+        };
+        await (editingEntryId ? profileApi.updateWork(editingEntryId, payload) : profileApi.createWork(payload));
+      } else if (entryType === 'project') {
+        payload = {
+          name: entryForm.name.trim(), startDate: entryForm.startDate.trim() || undefined,
+          endDate: entryForm.endDate.trim() || undefined, techStack: entryForm.techStack.trim() || undefined,
+          background: entryForm.background.trim() || undefined,
+          responsibilities: entryForm.responsibilities.trim() || undefined,
+          contributions: entryForm.contributions.trim() || undefined, results: entryForm.results.trim() || undefined,
+        };
+        await (editingEntryId ? profileApi.updateProject(editingEntryId, payload) : profileApi.createProject(payload));
+      } else {
+        payload = { name: entryForm.name.trim(), category: entryForm.category, level: entryForm.level.trim() || undefined };
+        await (editingEntryId ? profileApi.updateSkill(editingEntryId, payload) : profileApi.createSkill(payload));
+      }
+      setEntryModalOpen(false);
+      setProfileRevision((revision) => revision + 1);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setEntryError(error.response?.data?.message || '保存失败，请重试');
+    } finally {
+      setEntrySaving(false);
     }
   };
 
@@ -717,7 +845,7 @@ export default function ProfilePage() {
                       <GraduationCap size={18} className="text-cyan-400" />
                       教育经历
                     </h3>
-                    <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm font-medium hover:bg-purple-500/20 hover:border-purple-500/30 transition-all duration-300">
+                    <button onClick={() => openEntryModal('education')} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm font-medium hover:bg-purple-500/20 hover:border-purple-500/30 transition-colors">
                       <Plus size={15} />
                       <span>添加</span>
                     </button>
@@ -746,7 +874,7 @@ export default function ProfilePage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <button className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/80 transition-colors">
+                          <button onClick={() => openEntryModal('education', edu)} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/80 transition-colors" aria-label="编辑教育经历">
                             <Pencil size={14} />
                           </button>
                           <button
@@ -792,7 +920,7 @@ export default function ProfilePage() {
                       <Building2 size={18} className="text-indigo-400" />
                       工作经历
                     </h3>
-                    <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm font-medium hover:bg-purple-500/20 hover:border-purple-500/30 transition-all duration-300">
+                    <button onClick={() => openEntryModal('work')} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm font-medium hover:bg-purple-500/20 hover:border-purple-500/30 transition-colors">
                       <Plus size={15} />
                       <span>添加</span>
                     </button>
@@ -821,7 +949,7 @@ export default function ProfilePage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <button className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/80 transition-colors">
+                          <button onClick={() => openEntryModal('work', work)} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/80 transition-colors" aria-label="编辑工作经历">
                             <Pencil size={14} />
                           </button>
                           <button
@@ -867,7 +995,7 @@ export default function ProfilePage() {
                       <FolderKanban size={18} className="text-pink-400" />
                       项目经历
                     </h3>
-                    <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm font-medium hover:bg-purple-500/20 hover:border-purple-500/30 transition-all duration-300">
+                    <button onClick={() => openEntryModal('project')} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm font-medium hover:bg-purple-500/20 hover:border-purple-500/30 transition-colors">
                       <Plus size={15} />
                       <span>添加</span>
                     </button>
@@ -899,7 +1027,7 @@ export default function ProfilePage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <button className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/80 transition-colors">
+                          <button onClick={() => openEntryModal('project', proj)} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/80 transition-colors" aria-label="编辑项目经历">
                             <Pencil size={14} />
                           </button>
                           <button
@@ -962,7 +1090,7 @@ export default function ProfilePage() {
                       <Wrench size={18} className="text-amber-400" />
                       技能中心
                     </h3>
-                    <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm font-medium hover:bg-purple-500/20 hover:border-purple-500/30 transition-all duration-300">
+                    <button onClick={() => openEntryModal('skill')} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm font-medium hover:bg-purple-500/20 hover:border-purple-500/30 transition-colors">
                       <Plus size={15} />
                       <span>添加技能</span>
                     </button>
@@ -1024,6 +1152,13 @@ export default function ProfilePage() {
                                     {skill.level}
                                   </span>
                                 )}
+                                <button
+                                  onClick={() => openEntryModal('skill', skill)}
+                                  className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-full hover:bg-white/10"
+                                  aria-label="编辑技能"
+                                >
+                                  <Pencil size={12} className="text-white/50" />
+                                </button>
                                 {/* Delete on hover */}
                                 <button
                                   onClick={() => handleDeleteEntry('skill', skill.id)}
@@ -1052,6 +1187,88 @@ export default function ProfilePage() {
           )}
         </div>
       </main>
+
+      {entryModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0, 0, 0, 0.72)' }}
+          onClick={() => !entrySaving && setEntryModalOpen(false)}
+        >
+          <div className="glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-white/10 p-6">
+              <div>
+                <h3 className="text-xl font-bold text-white">
+                  {editingEntryId ? '编辑' : '添加'}{{ education: '教育经历', work: '工作经历', project: '项目经历', skill: '技能' }[entryType]}
+                </h3>
+                <p className="mt-1 text-sm text-white/40">带 * 的项目为必填项</p>
+              </div>
+              <button onClick={() => setEntryModalOpen(false)} disabled={entrySaving} className="p-2 rounded-lg hover:bg-white/10 text-white/50" aria-label="关闭">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2">
+              {entryType === 'education' && (
+                <>
+                  <label className="text-xs text-white/60">学校 *<input value={entryForm.school} onChange={(e) => updateEntryField('school', e.target.value)} className="glass-input mt-1.5" /></label>
+                  <label className="text-xs text-white/60">专业 *<input value={entryForm.major} onChange={(e) => updateEntryField('major', e.target.value)} className="glass-input mt-1.5" /></label>
+                  <label className="text-xs text-white/60">学历 *<input value={entryForm.degree} onChange={(e) => updateEntryField('degree', e.target.value)} className="glass-input mt-1.5" /></label>
+                  <label className="text-xs text-white/60">GPA<input value={entryForm.gpa} onChange={(e) => updateEntryField('gpa', e.target.value)} className="glass-input mt-1.5" /></label>
+                </>
+              )}
+              {entryType === 'work' && (
+                <>
+                  <label className="text-xs text-white/60">公司 *<input value={entryForm.company} onChange={(e) => updateEntryField('company', e.target.value)} className="glass-input mt-1.5" /></label>
+                  <label className="text-xs text-white/60">职位 *<input value={entryForm.position} onChange={(e) => updateEntryField('position', e.target.value)} className="glass-input mt-1.5" /></label>
+                  <label className="text-xs text-white/60 sm:col-span-2">行业<input value={entryForm.industry} onChange={(e) => updateEntryField('industry', e.target.value)} className="glass-input mt-1.5" /></label>
+                </>
+              )}
+              {entryType === 'project' && (
+                <>
+                  <label className="text-xs text-white/60 sm:col-span-2">项目名称 *<input value={entryForm.name} onChange={(e) => updateEntryField('name', e.target.value)} className="glass-input mt-1.5" /></label>
+                  <label className="text-xs text-white/60 sm:col-span-2">技术栈<input value={entryForm.techStack} onChange={(e) => updateEntryField('techStack', e.target.value)} placeholder="React, TypeScript, Node.js" className="glass-input mt-1.5" /></label>
+                </>
+              )}
+              {entryType === 'skill' && (
+                <>
+                  <label className="text-xs text-white/60">技能名称 *<input value={entryForm.name} onChange={(e) => updateEntryField('name', e.target.value)} className="glass-input mt-1.5" /></label>
+                  <label className="text-xs text-white/60">分类 *
+                    <select value={entryForm.category} onChange={(e) => updateEntryField('category', e.target.value as Skill['category'])} className="glass-input mt-1.5">
+                      <option value="tech">技术技能</option><option value="software">软件工具</option><option value="language">语言能力</option><option value="certificate">职业证书</option>
+                    </select>
+                  </label>
+                  <label className="text-xs text-white/60 sm:col-span-2">熟练程度<input value={entryForm.level} onChange={(e) => updateEntryField('level', e.target.value)} placeholder="例如：熟练" className="glass-input mt-1.5" /></label>
+                </>
+              )}
+
+              {entryType !== 'skill' && (
+                <>
+                  <label className="text-xs text-white/60">开始时间 {entryType !== 'project' && '*'}<input value={entryForm.startDate} onChange={(e) => updateEntryField('startDate', e.target.value)} placeholder="2022-07" className="glass-input mt-1.5" /></label>
+                  <label className="text-xs text-white/60">结束时间<input value={entryForm.endDate} onChange={(e) => updateEntryField('endDate', e.target.value)} placeholder="留空表示至今" className="glass-input mt-1.5" /></label>
+                </>
+              )}
+              {entryType === 'education' && <label className="text-xs text-white/60 sm:col-span-2">荣誉与成果<textarea value={entryForm.honors} onChange={(e) => updateEntryField('honors', e.target.value)} rows={3} className="glass-input mt-1.5 resize-none" /></label>}
+              {entryType === 'project' && <label className="text-xs text-white/60 sm:col-span-2">项目背景<textarea value={entryForm.background} onChange={(e) => updateEntryField('background', e.target.value)} rows={2} className="glass-input mt-1.5 resize-none" /></label>}
+              {(entryType === 'work' || entryType === 'project') && <label className="text-xs text-white/60 sm:col-span-2">职责<textarea value={entryForm.responsibilities} onChange={(e) => updateEntryField('responsibilities', e.target.value)} rows={3} className="glass-input mt-1.5 resize-none" /></label>}
+              {entryType === 'work' && <label className="text-xs text-white/60 sm:col-span-2">成果<textarea value={entryForm.achievements} onChange={(e) => updateEntryField('achievements', e.target.value)} rows={3} className="glass-input mt-1.5 resize-none" /></label>}
+              {entryType === 'project' && (
+                <>
+                  <label className="text-xs text-white/60 sm:col-span-2">个人贡献<textarea value={entryForm.contributions} onChange={(e) => updateEntryField('contributions', e.target.value)} rows={3} className="glass-input mt-1.5 resize-none" /></label>
+                  <label className="text-xs text-white/60 sm:col-span-2">项目成果<textarea value={entryForm.results} onChange={(e) => updateEntryField('results', e.target.value)} rows={3} className="glass-input mt-1.5 resize-none" /></label>
+                </>
+              )}
+              {entryError && <div className="sm:col-span-2 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"><AlertCircle size={16} />{entryError}</div>}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-white/10 p-6">
+              <button onClick={() => setEntryModalOpen(false)} disabled={entrySaving} className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white/60">取消</button>
+              <button onClick={saveEntry} disabled={entrySaving} className="btn-gradient flex items-center gap-2 px-6 py-2.5 text-sm disabled:opacity-50">
+                {entrySaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}{entrySaving ? '保存中...' : '保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {importModalOpen && (
         <div

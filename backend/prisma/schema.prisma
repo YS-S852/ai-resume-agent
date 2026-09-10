@@ -28,6 +28,7 @@ model User {
   atsReport     AtsReport[]
   interviewRecords InterviewRecord[]
   careerDocuments CareerDocument[]
+  jobApplications JobApplication[]
   searchHistory   SearchHistory[]
 
   @@map("users")
@@ -137,6 +138,7 @@ model Resume {
 
   user        User    @relation(fields: [userId], references: [id])
   versions    ResumeVersion[]
+  jobApplications JobApplication[]
 
   @@map("resumes")
 }
@@ -167,8 +169,37 @@ model JobDescription {
 
   user        User    @relation(fields: [userId], references: [id])
   atsReports  AtsReport[]
+  jobApplications JobApplication[]
 
   @@map("job_descriptions")
+}
+
+model JobApplication {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @map("user_id")
+  jobDescriptionId Int?     @map("job_description_id")
+  resumeId         Int?     @map("resume_id")
+  legacyDocumentId Int?     @unique @map("legacy_document_id")
+  company          String   @db.VarChar(100)
+  position         String   @db.VarChar(100)
+  salary           String?  @db.VarChar(50)
+  location         String?  @db.VarChar(100)
+  source           String?  @db.VarChar(50)
+  status           String   @default("wishlist") @db.VarChar(20)
+  notes            String?  @db.Text
+  jobUrl           String?  @map("job_url") @db.VarChar(1000)
+  appliedDate      DateTime? @map("applied_date")
+  interviewDate    DateTime? @map("interview_date")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user             User            @relation(fields: [userId], references: [id])
+  jobDescription   JobDescription? @relation(fields: [jobDescriptionId], references: [id])
+  resume            Resume?         @relation(fields: [resumeId], references: [id])
+
+  @@index([userId, status])
+  @@index([userId, updatedAt])
+  @@map("job_applications")
 }
 
 model AtsReport {

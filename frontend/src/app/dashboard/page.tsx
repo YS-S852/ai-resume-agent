@@ -14,7 +14,6 @@ import {
   MessageSquare,
   Briefcase,
   ChevronRight,
-  Bell,
   Search,
   TrendingUp,
   Clock,
@@ -22,7 +21,6 @@ import {
   Sparkles,
   Rocket,
   LogOut,
-  Settings,
   Menu,
   X,
   Loader2,
@@ -101,6 +99,14 @@ const featureCards = [
   },
 ];
 
+const funnelStages = [
+  { key: 'wishlist', label: '心愿单', color: 'bg-slate-400' },
+  { key: 'applied', label: '已投递', color: 'bg-cyan-400' },
+  { key: 'interview', label: '面试中', color: 'bg-amber-400' },
+  { key: 'offer', label: 'Offer', color: 'bg-emerald-400' },
+  { key: 'rejected', label: '已结束', color: 'bg-rose-400' },
+] as const;
+
 export default function DashboardPage() {
   const router = useRouter();
   const handleLogout = useLogout();
@@ -111,6 +117,10 @@ export default function DashboardPage() {
     resumeCount: 0,
     jobApplicationCount: 0,
     atsAvgScore: 0,
+    profileCompletion: 0,
+    jobFunnel: { wishlist: 0, applied: 0, interview: 0, offer: 0, rejected: 0 },
+    applicationTrend: [] as { month: string; count: number }[],
+    interviewStats: { total: 0, averageScore: 0, highestScore: 0 },
     lastActive: '',
     recentActivities: [] as { action: string; time: string; type: string }[],
   });
@@ -126,6 +136,10 @@ export default function DashboardPage() {
             resumeCount: data.resumeCount || 0,
             jobApplicationCount: data.jobApplicationCount || 0,
             atsAvgScore: data.atsAvgScore || 0,
+            profileCompletion: data.profileCompletion || 0,
+            jobFunnel: data.jobFunnel || { wishlist: 0, applied: 0, interview: 0, offer: 0, rejected: 0 },
+            applicationTrend: data.applicationTrend || [],
+            interviewStats: data.interviewStats || { total: 0, averageScore: 0, highestScore: 0 },
             lastActive: data.lastActive || '',
             recentActivities: data.recentActivities || [],
           });
@@ -244,10 +258,6 @@ export default function DashboardPage() {
 
           {/* Sidebar Footer */}
           <div className="p-4 space-y-1 border-t border-white/5">
-            <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-white/40 hover:text-white/70 hover:bg-white/5 transition-all duration-200">
-              <Settings size={16} />
-              <span>设置</span>
-            </button>
             <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-white/40 hover:text-red-400/80 hover:bg-red-500/5 transition-all duration-200">
               <LogOut size={16} />
               <span>退出登录</span>
@@ -274,20 +284,9 @@ export default function DashboardPage() {
             >
               <Menu size={22} />
             </button>
-            <div className="relative hidden sm:block">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-              <input
-                type="text"
-                placeholder="搜索功能、简历..."
-                className="pl-9 pr-4 py-2 bg-white/5 border border-white/8 rounded-lg text-sm text-white placeholder:text-white/30 outline-none focus:border-purple-500/30 focus:bg-white/8 transition-all w-64"
-              />
-            </div>
+            <span className="hidden text-sm font-medium text-white/50 sm:block">工作台</span>
           </div>
           <div className="flex items-center gap-4">
-            <button className="relative p-2 rounded-lg hover:bg-white/5 transition-colors text-white/50 hover:text-white/80">
-              <Bell size={18} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-purple-500 rounded-full" />
-            </button>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">
                 Y
@@ -300,7 +299,7 @@ export default function DashboardPage() {
         {/* Content Area */}
         <div className="p-6 space-y-8">
           {/* Welcome Section */}
-          <div className="slide-in-up" style={{ animationDelay: '0.1s' }}>
+          <div>
             <h2 className="text-2xl font-bold text-white mb-1">
               欢迎回来，<span className="holo-text">用户</span>
             </h2>
@@ -310,24 +309,23 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 slide-in-up" style={{ animationDelay: '0.2s' }}>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {statsLoading ? (
               <div className="col-span-full flex items-center justify-center py-8">
                 <Loader2 size={24} className="animate-spin text-purple-400/50" />
               </div>
             ) : (
               [
-                { icon: FileText, label: '简历数量', value: String(stats.resumeCount), color: 'text-purple-400' },
+                { icon: User, label: '档案完善度', value: `${stats.profileCompletion}%`, color: 'text-purple-400' },
                 { icon: Briefcase, label: '求职申请', value: String(stats.jobApplicationCount), color: 'text-cyan-400' },
                 { icon: TrendingUp, label: 'ATS 平均分', value: stats.atsAvgScore ? `${stats.atsAvgScore}%` : '--', color: 'text-green-400' },
-                { icon: Clock, label: '最近活跃', value: stats.lastActive || '--', color: 'text-amber-400' },
+                { icon: MessageSquare, label: '面试平均分', value: stats.interviewStats.averageScore ? `${stats.interviewStats.averageScore}` : '--', color: 'text-amber-400' },
               ].map((stat, idx) => {
                 const Icon = stat.icon;
                 return (
                   <div
                     key={idx}
-                    className="glass-card p-4 flex items-center gap-4 hover:border-white/15 transition-all duration-300 cursor-default"
-                    style={{ animationDelay: `${0.2 + idx * 0.1}s` }}
+                    className="glass-card p-4 flex items-center gap-4 hover:border-white/15 transition-colors cursor-default"
                   >
                     <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
                       <Icon size={20} className={stat.color} />
@@ -342,16 +340,73 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {!statsLoading && (
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+              <section className="glass-card p-6 xl:col-span-2">
+                <div className="mb-5 flex items-center justify-between">
+                  <h3 className="text-base font-semibold text-white/90">求职漏斗</h3>
+                  <Link href="/jobs" className="text-xs text-cyan-400 hover:text-cyan-300">查看求职看板</Link>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {funnelStages.map((stage) => {
+                    const count = stats.jobFunnel[stage.key];
+                    const percent = stats.jobApplicationCount ? Math.round(count / stats.jobApplicationCount * 100) : 0;
+                    return (
+                      <div key={stage.key} className="min-w-0">
+                        <div className="mb-2 h-2 overflow-hidden rounded bg-white/5">
+                          <div className={`h-full ${stage.color}`} style={{ width: `${percent}%` }} />
+                        </div>
+                        <p className="truncate text-xs text-white/40">{stage.label}</p>
+                        <p className="mt-1 text-lg font-semibold text-white">{count}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-6 border-t border-white/5 pt-5">
+                  <p className="mb-3 text-xs text-white/40">近六个月新增申请</p>
+                  <div className="flex h-24 items-end gap-3">
+                    {stats.applicationTrend.map((item) => {
+                      const max = Math.max(1, ...stats.applicationTrend.map((entry) => entry.count));
+                      return (
+                        <div key={item.month} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
+                          <span className="text-[10px] text-white/40">{item.count}</span>
+                          <div className="w-full max-w-10 rounded-t bg-cyan-400/60" style={{ height: `${Math.max(4, item.count / max * 56)}px` }} />
+                          <span className="text-[10px] text-white/30">{item.month.slice(5)}月</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+
+              <section className="glass-card p-6">
+                <h3 className="mb-5 text-base font-semibold text-white/90">求职准备度</h3>
+                <div className="mb-6">
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="text-white/50">档案完善度</span>
+                    <span className="font-semibold text-white">{stats.profileCompletion}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded bg-white/5">
+                    <div className="h-full bg-purple-400" style={{ width: `${stats.profileCompletion}%` }} />
+                  </div>
+                  <Link href="/profile" className="mt-3 inline-block text-xs text-purple-400 hover:text-purple-300">完善个人档案</Link>
+                </div>
+                <div className="grid grid-cols-3 gap-2 border-t border-white/5 pt-5 text-center">
+                  <div><p className="text-xl font-semibold text-white">{stats.interviewStats.total}</p><p className="mt-1 text-[11px] text-white/35">模拟次数</p></div>
+                  <div><p className="text-xl font-semibold text-white">{stats.interviewStats.averageScore || '--'}</p><p className="mt-1 text-[11px] text-white/35">平均分</p></div>
+                  <div><p className="text-xl font-semibold text-white">{stats.interviewStats.highestScore || '--'}</p><p className="mt-1 text-[11px] text-white/35">最高分</p></div>
+                </div>
+              </section>
+            </div>
+          )}
+
           {/* Feature Cards Grid */}
           <div>
-            <div className="flex items-center justify-between mb-4 slide-in-up" style={{ animationDelay: '0.4s' }}>
+            <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-white/90 flex items-center gap-2">
                 <Star size={18} className="text-amber-400" />
                 功能中心
               </h3>
-              <a href="#" className="text-sm text-purple-400/70 hover:text-purple-400 transition-colors">
-                查看全部
-              </a>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
               {featureCards.map((card, idx) => {
@@ -362,14 +417,11 @@ export default function DashboardPage() {
                     onClick={() => router.push(card.href)}
                     className={`
                       glass-card p-6 cursor-pointer group
-                      hover:shadow-lg hover:shadow-purple-500/5
-                      transition-all duration-300 hover:-translate-y-1
+                      transition-colors duration-200
                       border border-transparent ${card.borderColor}
-                      slide-in-up
                     `}
-                    style={{ animationDelay: `${0.5 + idx * 0.1}s` }}
                   >
-                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${card.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${card.gradient} flex items-center justify-center mb-4`}>
                       <Icon size={24} className={card.iconColor} />
                     </div>
                     <h4 className="text-white font-semibold text-base mb-2 group-hover:text-white transition-colors">
@@ -389,7 +441,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent Activity */}
-          <div className="glass-card p-6 slide-in-up" style={{ animationDelay: '1.1s' }}>
+          <div className="glass-card p-6">
             <h3 className="text-lg font-semibold text-white/90 mb-4 flex items-center gap-2">
               <Clock size={18} className="text-cyan-400" />
               最近活动
